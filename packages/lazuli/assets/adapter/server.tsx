@@ -87,6 +87,10 @@ app.post("/render", async (c) => {
           const subpath = key.replace("hono/", "");
           importMap.imports[key] = `https://esm.sh/hono@4/${subpath}?target=deno`;
         }
+      } else if (typeof value === "string" && value.startsWith("npm:")) {
+        // Convert npm:package@version to https://esm.sh/package@version for browser
+        const pkg = value.replace("npm:", "");
+        importMap.imports[key] = `https://esm.sh/${pkg}`;
       } else {
         importMap.imports[key] = value as string;
       }
