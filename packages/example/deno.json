@@ -1,9 +1,8 @@
 {
   "imports": {
-    "solid-js": "npm:solid-js@^1.8",
-    "solid-js/web": "npm:solid-js@^1.8/web",
-    "solid-js/h": "npm:solid-js@^1.8/h",
-    "solid-js/h/jsx-runtime": "npm:solid-js@^1.8/h/jsx-runtime",
-    "solid-js/jsx-runtime": "npm:solid-js@^1.8/h/jsx-runtime"
+    "hono": "npm:hono@^4",
+    "hono/": "npm:hono@^4/",
+    "hono/jsx": "npm:hono@^4/jsx",
+    "hono/jsx/dom": "npm:hono@^4/jsx/dom"
   }
 }

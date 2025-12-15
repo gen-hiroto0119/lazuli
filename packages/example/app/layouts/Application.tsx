@@ -1,6 +1,6 @@
-import { JSX } from "solid-js";
+import { FC } from "hono/jsx";
 
-export default function Application(props: { children: JSX.Element }) {
+const Application: FC = (props) => {
   return (
     <html>
       <head>
@@ -12,4 +12,6 @@ export default function Application(props: { children: JSX.Element }) {
       </body>
     </html>
   );
-}
+};
+
+export default Application;

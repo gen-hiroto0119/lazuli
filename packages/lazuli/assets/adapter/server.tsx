@@ -1,19 +1,10 @@
 import { Hono } from "hono";
-import { renderToString } from "solid-js/web";
+import { html } from "hono/html";
 import { parseArgs } from "@std/cli/parse-args";
 import { join, toFileUrl, resolve, extname, dirname } from "@std/path";
 import { ensureDir } from "@std/fs";
 import * as esbuild from "esbuild";
 import { denoPlugins } from "esbuild-deno-loader";
-
-// Hack to force SolidJS into server mode?
-// Or mock DOM for h?
-// @ts-ignore
-globalThis.window = {};
-// @ts-ignore
-globalThis.document = {};
-// @ts-ignore
-globalThis.Element = class {};
 
 // Parse command line arguments
 const args = parseArgs(Deno.args, {
@@ -71,12 +62,12 @@ app.post("/render", async (c) => {
       throw new Error(`Layout component not found at ${layoutPath}`);
     }
 
-    // Render to string using SolidJS
-    const body = renderToString(() => (
+    // Render to string using Hono html helper
+    const body = html`${
       <LayoutComponent>
         <PageComponent {...props} />
       </LayoutComponent>
-    ));
+    }`;
 
     // Generate Import Map from deno.json
     const userImports = await loadUserImports(appRoot);
@@ -85,17 +76,30 @@ app.post("/render", async (c) => {
     };
 
     // Map each import to the vendor endpoint
-    for (const key of Object.keys(userImports)) {
-      importMap.imports[key] = `/assets/vendor/${key}`;
+    for (const [key, value] of Object.entries(userImports)) {
+      if (key.startsWith("hono")) {
+        // Map hono to esm.sh for browser
+        if (key === "hono") {
+          importMap.imports[key] = "https://esm.sh/hono@4?target=deno";
+        } else if (key === "hono/") {
+          importMap.imports[key] = "https://esm.sh/hono@4&target=deno/";
+        } else {
+          // e.g. hono/jsx -> https://esm.sh/hono@4/jsx?target=deno
+          const subpath = key.replace("hono/", "");
+          importMap.imports[key] = `https://esm.sh/hono@4/${subpath}?target=deno`;
+        }
+      } else {
+        importMap.imports[key] = value as string;
+      }
     }
 
     // Inject Import Map into HEAD
-    const html = `<!DOCTYPE html>${body}`;
+    const doc = `<!DOCTYPE html>${body}`;
     const importMapScript = `<script type="importmap">${JSON.stringify(importMap)}</script>`;
     
     // Simple injection: replace </head> with script + </head>
     // If no head, append to body (fallback)
-    const injectedHtml = html.replace("</head>", `${importMapScript}</head>`);
+    const injectedHtml = doc.replace("</head>", `${importMapScript}</head>`);
 
     return c.html(injectedHtml);
   } catch (e) {
@@ -106,77 +110,9 @@ app.post("/render", async (c) => {
 
 // Vendor Asset Server
 app.get("/assets/vendor/*", async (c) => {
-  await initEsbuild();
-  const pkgName = c.req.path.replace("/assets/vendor/", "");
-  const appRoot = resolve(args["app-root"]);
-  const userImports = await loadUserImports(appRoot);
-  
-  // Resolve package specifier from deno.json
-  // e.g. "solid-js" -> "npm:solid-js@^1.8"
-  const specifier = userImports[pkgName];
-
-  if (!specifier) {
-    return c.text(`Package not found in deno.json: ${pkgName}`, 404);
-  }
-
-  try {
-    // Check if the module has a default export
-    const mod = await import(specifier);
-    const hasDefault = !!mod.default;
-
-    // Create a virtual entry point that exports everything from the package
-    // Use pkgName directly so esbuild resolves it via import map
-    let entryPointContent = `export * from "${pkgName}";`;
-    if (hasDefault) {
-      entryPointContent += ` export { default } from "${pkgName}";`;
-    }
-    
-    // Write entry point to a temporary file to avoid esbuild-deno-loader stdin issues
-    const tmpDir = join(appRoot, "tmp", "vendor_build");
-    await ensureDir(tmpDir);
-    // Sanitize pkgName for filename
-    const safeName = pkgName.replace(/\//g, "_");
-    const entryPointPath = join(tmpDir, `${safeName}.ts`);
-    await Deno.writeTextFile(entryPointPath, entryPointContent);
-
-    // Custom plugin to handle exact match externals
-    const externalPlugin = {
-      name: 'external-plugin',
-      setup(build: esbuild.PluginBuild) {
-        const externals = Object.keys(userImports).filter(k => k !== pkgName);
-        build.onResolve({ filter: /.*/ }, args => {
-          if (externals.includes(args.path)) {
-            return { path: args.path, external: true };
-          }
-        });
-      },
-    };
-
-    const result = await esbuild.build({
-      plugins: [
-        externalPlugin,
-        ...denoPlugins({
-        loader: "native",
-        importMapURL: toFileUrl(resolve(appRoot, "deno.json")).href,
-      })],
-      entryPoints: [entryPointPath],
-      bundle: true,
-      write: false,
-      format: "esm",
-      platform: "browser",
-      // Externalize other vendor libs defined in deno.json
-      // This ensures solid-js/web imports solid-js from /assets/vendor/solid-js
-      external: [], // Handled by plugin
-      jsx: "automatic",
-    });
-
-    return c.body(result.outputFiles[0].text, 200, {
-      "Content-Type": "application/javascript",
-    });
-  } catch (e) {
-    console.error("Vendor build error:", e);
-    return c.text(e.toString(), 500);
-  }
+  // With esm.sh, we don't need to serve vendor files manually.
+  // The Import Map will point directly to esm.sh.
+  return c.text("Not Found", 404);
 });
 
 // Asset Server
@@ -184,33 +120,27 @@ app.get("/assets/*", async (c) => {
   await initEsbuild();
   const path = c.req.path.replace("/assets/", "");
   const appRoot = resolve(args["app-root"]);
-  // Map /assets/components/Counter.tsx -> app/components/Counter.tsx
-  // Map /assets/pages/users/index.tsx -> app/pages/users/index.tsx
   const filePath = join(appRoot, "app", path);
 
   try {
-    const result = await esbuild.build({
-      plugins: [...denoPlugins({
-        loader: "native",
-        importMapURL: toFileUrl(resolve(appRoot, "deno.json")).href,
-      })],
-      entryPoints: [filePath],
-      bundle: true,
-      write: false,
+    const content = await Deno.readTextFile(filePath);
+    
+    // Transform TSX to JS, but DO NOT BUNDLE.
+    // Leave imports as they are (bare specifiers).
+    // The browser will resolve them using the Import Map.
+    const result = await esbuild.transform(content, {
+      loader: "tsx",
       format: "esm",
-      platform: "browser",
-      // Externalize everything defined in user's deno.json
-      // They will be resolved via Import Map to /assets/vendor/...
-      external: Object.keys(await loadUserImports(appRoot)),
+      target: "es2022",
       jsx: "automatic",
-      jsxImportSource: "solid-js",
+      jsxImportSource: "hono/jsx",
     });
 
-    return c.body(result.outputFiles[0].text, 200, {
+    return c.body(result.code, 200, {
       "Content-Type": "application/javascript",
     });
   } catch (e) {
-    console.error("Build error:", e);
+    console.error("Transform error:", e);
     return c.text(e.toString(), 500);
   }
 });

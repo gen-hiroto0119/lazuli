@@ -1,13 +1,13 @@
 "use hydration";
 
-import { createSignal } from "solid-js";
+import { useState } from "hono/jsx";
 
 export default function Counter(props: { initialCount: number }) {
-  const [count, setCount] = createSignal(props.initialCount);
+  const [count, setCount] = useState(props.initialCount);
   
   return (
-    <button onClick={() => setCount(c => c + 1)} class="btn">
-      Count: {count()}
+    <button onClick={() => setCount(count + 1)} class="btn">
+      Count: {count}
     </button>
   );
 }

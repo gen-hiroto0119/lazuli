@@ -1,25 +1,24 @@
-import { createUniqueId } from "solid-js";
-import { ssr } from "solid-js/web";
+import { FC } from "hono/jsx";
 
-export default function Island(props: { path: string, component: any, data: any }) {
-  const id = createUniqueId();
+const Island: FC<{ path: string; component: any; data: any }> = (props) => {
+  const id = "island-" + Math.random().toString(36).slice(2);
   const Component = props.component;
-  
-  // We need to serialize props safely
   const jsonProps = JSON.stringify(props.data);
-  
+
   return (
     <>
       <div id={id}>
         <Component {...props.data} />
       </div>
-      <script type="module">{`
-        import { hydrate } from "solid-js/web";
-        import { createComponent } from "solid-js";
+      <script type="module" dangerouslySetInnerHTML={{ __html: `
+        import { render } from "hono/jsx/dom";
+        import { jsx } from "hono/jsx";
         import Component from "/assets/${props.path}.tsx";
         const el = document.getElementById("${id}");
-        hydrate(() => createComponent(Component, ${jsonProps}), el);
-      `}</script>
+        render(jsx(Component, ${jsonProps}), el);
+      ` }} />
     </>
   );
-}
+};
+
+export default Island;

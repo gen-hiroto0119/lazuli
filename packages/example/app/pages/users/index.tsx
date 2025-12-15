@@ -1,4 +1,3 @@
-import { For } from "solid-js";
 import Counter from "../../components/Counter.tsx";
 import Island from "../../components/Island.tsx";
 
@@ -12,13 +11,11 @@ export default function UsersIndex(props: { users: User[] }) {
     <div>
       <h1>Users List</h1>
       <ul>
-        <For each={props.users}>
-          {(user) => (
-            <li>
-              {user.id}: {user.name}
-            </li>
-          )}
-        </For>
+        {props.users.map((user) => (
+          <li>
+            {user.id}: {user.name}
+          </li>
+        ))}
       </ul>
       
       <div style={{ "margin-top": "20px", border: "1px solid #ccc", padding: "10px" }}>
