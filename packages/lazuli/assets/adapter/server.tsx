@@ -1,10 +1,9 @@
-import { Hono } from "hono";
-import { html } from "hono/html";
-import { parseArgs } from "@std/cli/parse-args";
-import { join, toFileUrl, resolve, extname, dirname } from "@std/path";
-import { ensureDir } from "@std/fs";
-import * as esbuild from "esbuild";
-import { denoPlugins } from "esbuild-deno-loader";
+import { Hono } from "npm:hono@^4";
+import { html } from "npm:hono@^4/html";
+import { parseArgs } from "jsr:@std/cli@^0.224.0/parse-args";
+import { join, toFileUrl, resolve, extname, dirname } from "jsr:@std/path@^0.224.0";
+import { ensureDir } from "jsr:@std/fs@^0.224.0";
+import * as esbuild from "https://deno.land/x/esbuild@v0.20.1/mod.js";
 
 // Parse command line arguments
 const args = parseArgs(Deno.args, {
