@@ -14,11 +14,10 @@ export default function Island(props: { path: string, component: any, data: any 
         <Component {...props.data} />
       </div>
       <script type="module">{`
-        import { hydrate } from "https://esm.sh/solid-js@1.8.16/web";
-        import h from "https://esm.sh/solid-js@1.8.16/h";
+        import { hydrate, createComponent } from "https://esm.sh/solid-js@1.8.16/web";
         import Component from "/assets/${props.path}.tsx";
         const el = document.getElementById("${id}");
-        hydrate(() => h(Component, ${jsonProps}), el);
+        hydrate(() => createComponent(Component, ${jsonProps}), el);
       `}</script>
     </>
   );

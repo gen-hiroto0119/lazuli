@@ -91,6 +91,10 @@ app.get("/assets/*", async (c) => {
         });
         
         // Handle bare specifiers for SolidJS
+        build.onResolve({ filter: /^solid-js\/jsx-runtime/ }, (args: any) => {
+          return { path: `https://esm.sh/solid-js@1.8.16/h/jsx-runtime`, external: true };
+        });
+
         build.onResolve({ filter: /^solid-js/ }, (args: any) => {
           return { path: `https://esm.sh/${args.path}`, external: true };
         });
