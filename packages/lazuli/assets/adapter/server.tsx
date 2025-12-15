@@ -128,13 +128,33 @@ app.get("/assets/vendor/*", async (c) => {
       entryPoint += ` export { default } from "${specifier}";`;
     }
     
+    // Append external=solid-js if it's a solid-js lib but not core
+    if (pkgName.includes("solid-js") && pkgName !== "solid-js") {
+      // We need to replace the specifier in the entryPoint string
+      // But specifier might contain special regex chars like ^
+      // So we use simple string replacement since we constructed the string ourselves
+      entryPoint = entryPoint.split(specifier).join(`${specifier}?external=solid-js`);
+    }
+    
     // Simple plugin to resolve npm: imports to esm.sh for browser
     const npmResolverPlugin = {
       name: 'npm-resolver',
       setup(build: any) {
         build.onResolve({ filter: /^npm:/ }, (args: any) => {
-          const pkg = args.path.replace(/^npm:/, "");
-          return { path: `https://esm.sh/${pkg}`, external: true };
+          let pkg = args.path.replace(/^npm:/, "");
+          
+          // Ensure solid-js is treated as external dependency by esm.sh
+          // This forces esm.sh to generate 'import ... from "solid-js"'
+          // which allows our Import Map to take control and dedupe the instance.
+          const isSolidLib = pkg.includes("solid-js");
+          const isCore = pkg === "solid-js" || pkg.match(/^solid-js@/);
+          
+          let url = `https://esm.sh/${pkg}`;
+          if (isSolidLib && !isCore) {
+             url += "?external=solid-js";
+          }
+          
+          return { path: url, external: true };
         });
       },
     };
