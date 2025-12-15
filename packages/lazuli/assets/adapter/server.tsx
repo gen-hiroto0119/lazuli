@@ -118,8 +118,15 @@ app.get("/assets/vendor/*", async (c) => {
   }
 
   try {
+    // Check if the module has a default export
+    const mod = await import(specifier);
+    const hasDefault = !!mod.default;
+
     // Create a virtual entry point that exports everything from the package
-    const entryPoint = `export * from "${specifier}"; export { default } from "${specifier}";`;
+    let entryPoint = `export * from "${specifier}";`;
+    if (hasDefault) {
+      entryPoint += ` export { default } from "${specifier}";`;
+    }
     
     // Simple plugin to resolve npm: imports to esm.sh for browser
     const npmResolverPlugin = {
