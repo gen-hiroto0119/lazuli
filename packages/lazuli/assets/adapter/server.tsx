@@ -128,14 +128,6 @@ app.get("/assets/vendor/*", async (c) => {
       entryPoint += ` export { default } from "${specifier}";`;
     }
     
-    // Append external=solid-js if it's a solid-js lib but not core
-    if (pkgName.includes("solid-js") && pkgName !== "solid-js") {
-      // We need to replace the specifier in the entryPoint string
-      // But specifier might contain special regex chars like ^
-      // So we use simple string replacement since we constructed the string ourselves
-      entryPoint = entryPoint.split(specifier).join(`${specifier}?external=solid-js`);
-    }
-    
     // Simple plugin to resolve npm: imports to esm.sh for browser
     const npmResolverPlugin = {
       name: 'npm-resolver',
@@ -192,6 +184,29 @@ app.get("/assets/*", async (c) => {
   const filePath = join(appRoot, "app", path);
 
   try {
+    // Simple plugin to resolve npm: imports to esm.sh for browser
+    const npmResolverPlugin = {
+      name: 'npm-resolver',
+      setup(build: any) {
+        build.onResolve({ filter: /^npm:/ }, (args: any) => {
+          let pkg = args.path.replace(/^npm:/, "");
+          
+          // Ensure solid-js is treated as external dependency by esm.sh
+          // This forces esm.sh to generate 'import ... from "solid-js"'
+          // which allows our Import Map to take control and dedupe the instance.
+          const isSolidLib = pkg.includes("solid-js");
+          const isCore = pkg === "solid-js" || pkg.match(/^solid-js@/);
+          
+          let url = `https://esm.sh/${pkg}`;
+          if (isSolidLib && !isCore) {
+             url += "?external=solid-js";
+          }
+          
+          return { path: url, external: true };
+        });
+      },
+    };
+
     const result = await esbuild.build({
       entryPoints: [filePath],
       bundle: true,
@@ -201,6 +216,7 @@ app.get("/assets/*", async (c) => {
       // Externalize everything defined in user's deno.json
       // They will be resolved via Import Map to /assets/vendor/...
       external: Object.keys(await loadUserImports(appRoot)),
+      plugins: [npmResolverPlugin],
       jsx: "automatic",
       jsxImportSource: "solid-js",
     });
