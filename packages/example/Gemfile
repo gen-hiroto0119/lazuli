@@ -1,0 +1,6 @@
+source "https://rubygems.org"
+
+gem "lazuli", path: "../lazuli"
+gem "puma"
+gem "sqlite3"
+gem "rackup"
