@@ -1,10 +1,10 @@
-# Lazuli Solid Architecture Design (Part 1)
+# Lazuli Architecture Design (Part 1)
 
 ## 1\. Vision & Core Philosophy
 
-**"Ruby for Thinking, Solid for Rendering."**
+**"Ruby for Thinking, Hono for Rendering."**
 
-Lazuliは、Rubyの「記述性の高さ」と、モダンWeb標準（Deno/Solid/Hono）の「パフォーマンス」を、たった1つのサーバープロセスで融合させる **Super Modern Monolith** フレームワークである。
+Lazuliは、Rubyの「記述性の高さ」と、モダンWeb標準（Deno/Hono）の「パフォーマンス」を、たった1つのサーバープロセスで融合させる **Super Modern Monolith** フレームワークである。
 
 ### 3つの原則
 
@@ -16,7 +16,7 @@ Lazuliは、Rubyの「記述性の高さ」と、モダンWeb標準（Deno/Solid
       * ActiveRecordは使用せず、SQLとStructへのマッピングを基本とする。
 3.  **HTML First, JS Second:**
       * 基本はMPA（Multi-Page Application）。ページ遷移は高速。
-      * JavaScriptは必要な箇所（Islands）にのみ「ふりかける」。ビルドステップは存在しない（On-demand Build）。
+      * JavaScriptは必要な箇所（Islands）にのみ「ふりかける」。ビルドステップは存在しない（Zero Node Modules）。
 
 -----
 
@@ -40,8 +40,8 @@ graph TD
         
         subgraph "Deno Layer (The View)"
             Hono["Hono Server"]
-            SolidSSR["SolidJS SSR"]
-            Esbuild["On-demand Builder"]
+            HonoSSR["Hono JSX SSR"]
+            Esbuild["On-demand Transform"]
         end
         
         subgraph "Data Store"
@@ -68,16 +68,16 @@ my_app/
 │   ├── repositories/    # [Ruby] データアクセス・SQL実行 (No ActiveRecord)
 │   ├── resources/       # [Ruby] URLエンドポイント・ロジック
 │   │
-│   ├── layouts/         # [Deno] 共通レイアウト (SolidJS JSX)
-│   ├── pages/           # [Deno] ページView (SolidJS JSX)
-│   └── components/      # [Deno] UI部品 & Islands (SolidJS JSX)
+│   ├── layouts/         # [Deno] 共通レイアウト (Hono JSX)
+│   ├── pages/           # [Deno] ページView (Hono JSX)
+│   └── components/      # [Deno] UI部品 & Islands (Hono JSX)
 │
 ├── db/
 │   ├── schema.sql       # DBスキーマ定義
 │   └── seeds.rb         # 初期データ
 │
 ├── config.ru            # Rubyエントリーポイント
-├── deno.json            # Deno/Hono/Solid 設定ファイル
+├── deno.json            # Deno/Hono 設定ファイル
 └── Gemfile              # Ruby依存関係
 ```
 
@@ -170,11 +170,11 @@ end
 
 *(後半へ続く：Deno層の設計、通信プロトコル、Frontend戦略について)*
 
-# Lazuli Solid Architecture Design (Part 2)
+# Lazuli Architecture Design (Part 2)
 
 ## 5\. Deno Layer Design (The Render)
 
-Deno層は「アプリケーションサーバー」ではなく、**「超高性能なビューエンジン」** として振る舞う。Hono がリクエストを受け、SolidJS が文字列結合レベルの速度で HTML を生成する。
+Deno層は「アプリケーションサーバー」ではなく、**「超高性能なビューエンジン」** として振る舞う。Hono がリクエストを受け、Hono JSX が高速に HTML を生成する。
 
 ### 5-1. Configuration: Single `deno.json`
 
@@ -188,12 +188,13 @@ Deno層は「アプリケーションサーバー」ではなく、**「超高�
   },
   "imports": {
     "hono": "npm:hono@^4",
-    "solid-js": "npm:solid-js@^1.8",
-    "solid-js/web": "npm:solid-js@^1.8/web"
+    "hono/": "npm:hono@^4/",
+    "hono/jsx": "npm:hono@^4/jsx",
+    "hono/jsx/dom": "npm:hono@^4/jsx/dom"
   },
   "compilerOptions": {
     "jsx": "react-jsx",
-    "jsxImportSource": "solid-js"
+    "jsxImportSource": "hono/jsx"
   }
 }
 ```
@@ -203,75 +204,83 @@ Deno層は「アプリケーションサーバー」ではなく、**「超高�
 Denoアダプターの実態は、極限まで薄い Hono アプリケーションである。
 
 ```typescript
-// packages/lazuli/assets/adapter/server.ts
+// packages/lazuli/assets/adapter/server.tsx
 import { Hono } from "hono";
-import { renderToString } from "solid-js/web";
 import { html } from "hono/html";
 
 const app = new Hono();
 
 // 1. RPC Endpoint: Rubyからのレンダリング依頼
-app.post("/rpc/render_page", async (c) => {
+app.post("/render", async (c) => {
   const { page, props } = await c.req.json();
   
   // 動的インポートでコンポーネントを読み込む
   const PageComponent = (await import(`../../app/pages/${page}.tsx`)).default;
   const Layout = (await import(`../../app/layouts/Application.tsx`)).default;
 
-  // SolidJSによる高速SSR
-  const body = renderToString(() => (
+  // Hono JSXによる高速SSR
+  const body = html`${
     <Layout>
       <PageComponent {...props} />
     </Layout>
-  ));
+  }`;
 
   return c.html(`<!DOCTYPE html>${body}`);
 });
 
-// 2. Asset Server: オンデマンドビルド
-// ブラウザからのリクエストに対し、esbuildでTSXをJSに変換して返す
-app.get("/assets/*", async (c) => { /* ... build logic ... */ });
+// 2. Asset Server: オンデマンド変換
+// ブラウザからのリクエストに対し、esbuildでTSXをJSに変換して返す（バンドルはしない）
+app.get("/assets/*", async (c) => { /* ... transform logic ... */ });
 
 export default app;
 ```
 
 -----
 
-## 6\. Frontend Strategy (Hydration & Islands)
+## 6\. Frontend Strategy (Zero Node Modules)
 
-JSバンドルサイズを極小化するため、**「基本はHTML、必要な箇所だけJS」** という戦略を徹底する。
+JSバンドルサイズを極小化し、ビルドステップを排除するため、**「Zero Node Modules」** 戦略を採用する。
 
 ### 6-1. Navigation: Turbo Drive
 
 SPAのような「ぬるぬる動く」ページ遷移は、**Turbo Drive** によって実現する。
 Ruby/Denoは通常のHTMLを返すが、Turboが `<body>` を差分更新するため、ブラウザのリロードは発生しない。これにカスタムコードは一切不要である。
 
-### 6-2. Interactivity: Islands Architecture
+### 6-2. Interactivity: Islands Architecture with Hono JSX
 
-動的なUI（カウンタ、モーダル等）が必要な場合のみ、SolidJSをクライアントサイドで起動（Hydrate）する。
-識別子は **`"use hydration"`** ディレクティブである。
+動的なUI（カウンタ、モーダル等）が必要な場合のみ、Hono JSX をクライアントサイドで起動（Hydrate）する。
+ブラウザ側では `esm.sh` を経由して Hono をロードするため、`node_modules` は不要である。
 
 **Component Definition:**
 
 ```tsx
 // app/components/Counter.tsx
-"use hydration"; // 👈 この宣言があるファイルだけがブラウザに配信される
-
-import { createSignal } from "solid-js";
+import { useState } from "hono/jsx";
 
 export default function Counter(props) {
-  const [count, setCount] = createSignal(props.initialCount);
+  const [count, setCount] = useState(props.initialCount);
   
   return (
     <button onClick={() => setCount(c => c + 1)} class="btn">
-      Count: {count()}
+      Count: {count}
     </button>
   );
 }
 ```
 
-**Server Usage (SSR):**
-Deno側でビルドする際、`"use hydration"` を検出すると、自動的に「静的HTML」と「Hydration用スクリプト」の両方を生成する。
+**Client-side Hydration:**
+
+```html
+<div id="island-1">...</div>
+<script type="module">
+  import { render } from "hono/jsx/dom";
+  import { jsx } from "hono/jsx";
+  import Component from "/assets/components/Counter.tsx";
+  
+  const el = document.getElementById("island-1");
+  render(jsx(Component, { initialCount: 10 }), el);
+</script>
+```
 
 -----
 
@@ -297,15 +306,15 @@ RubyとTypeScriptという異なる言語間で、どのように安全性を担
 
 -----
 
-## 8\. Summary: Why Lazuli Solid?
+## 8\. Summary: Why Lazuli?
 
 このアーキテクチャは、Web開発における「3つの分断」を解決する。
 
 1.  **バックエンド vs フロントエンドの分断**
       * 👉 **解決:** ResourceとPageが1対1対応し、Structで型がつながるため、一人の開発者がシームレスに行き来できる。
 2.  **開発効率 vs パフォーマンスの分断**
-      * 👉 **解決:** Rubyで素早く書き、SolidJSとSQLiteで爆速に動かす。
+      * 👉 **解決:** Rubyで素早く書き、HonoとSQLiteで爆速に動かす。
 3.  **SPA vs MPA の分断**
-      * 👉 **解決:** TurboでMPAの良さ（SEO、シンプルさ）を維持しつつ、Solid IslandsでSPAの良さ（インタラクティブ性）を取り込む。
+      * 👉 **解決:** TurboでMPAの良さ（SEO、シンプルさ）を維持しつつ、Hono JSX IslandsでSPAの良さ（インタラクティブ性）を取り込む。
 
-**Lazuli Solid Architecture** は、個人の生産性を最大化し、かつ数万ユーザー規模までスケール可能な、現代の「個人開発者・小規模チーム」のための究極の武器である。
+**Lazuli Architecture** は、個人の生産性を最大化し、かつ数万ユーザー規模までスケール可能な、現代の「個人開発者・小規模チーム」のための究極の武器である。
