@@ -10,8 +10,8 @@ export default function Application(props: { children: JSX.Element }) {
         {
           "imports": {
             "solid-js": "https://esm.sh/solid-js@1.8.16?target=es2022",
-            "solid-js/web": "https://esm.sh/solid-js@1.8.16/web?target=es2022",
-            "solid-js/jsx-runtime": "https://esm.sh/solid-js@1.8.16/h/jsx-runtime?target=es2022"
+            "solid-js/web": "https://esm.sh/solid-js@1.8.16/web?target=es2022&external=solid-js",
+            "solid-js/jsx-runtime": "https://esm.sh/solid-js@1.8.16/h/jsx-runtime?target=es2022&external=solid-js"
           }
         }
         `}</script>
