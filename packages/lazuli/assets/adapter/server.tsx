@@ -81,35 +81,15 @@ app.get("/assets/*", async (c) => {
   const filePath = join(appRoot, "app", path);
 
   try {
-    // Simple plugin to resolve npm: imports to esm.sh for browser
-    const npmResolverPlugin = {
-      name: 'npm-resolver',
-      setup(build: any) {
-        build.onResolve({ filter: /^npm:/ }, (args: any) => {
-          const pkg = args.path.replace(/^npm:/, "");
-          return { path: `https://esm.sh/${pkg}`, external: true };
-        });
-        
-        // Handle bare specifiers for SolidJS
-        build.onResolve({ filter: /^solid-js\/jsx-runtime/ }, (args: any) => {
-          return { path: `https://esm.sh/solid-js@1.8.16/h/jsx-runtime`, external: true };
-        });
-
-        build.onResolve({ filter: /^solid-js/ }, (args: any) => {
-          return { path: `https://esm.sh/${args.path}`, external: true };
-        });
-      },
-    };
-
     const result = await esbuild.build({
       entryPoints: [filePath],
       bundle: true,
       write: false,
       format: "esm",
       platform: "browser",
-      plugins: [npmResolverPlugin],
+      external: ["solid-js", "solid-js/*"],
       jsx: "automatic",
-      jsxImportSource: "solid-js", // Use standard solid-js for browser
+      jsxImportSource: "solid-js",
     });
 
     return c.body(result.outputFiles[0].text, 200, {

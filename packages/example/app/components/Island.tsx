@@ -14,7 +14,8 @@ export default function Island(props: { path: string, component: any, data: any 
         <Component {...props.data} />
       </div>
       <script type="module">{`
-        import { hydrate, createComponent } from "https://esm.sh/solid-js@1.8.16/web";
+        import { hydrate } from "solid-js/web";
+        import { createComponent } from "solid-js";
         import Component from "/assets/${props.path}.tsx";
         const el = document.getElementById("${id}");
         hydrate(() => createComponent(Component, ${jsonProps}), el);
