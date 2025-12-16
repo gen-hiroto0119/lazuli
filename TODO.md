@@ -25,9 +25,31 @@
     - [x] 終了時にDeno/Rackを停止しソケットをクリーンアップ（基本）
     - [ ] プロセスグループ/子プロセス含む完全停止
     - [ ] ログ簡素化・リトライ制御
+- [ ] **プロセスモデルの整理（App/ServerRunner）**
+    - [ ] `Lazuli::App#start_deno_process` を実装するか（rackup単体起動でもDenoをspawnできるようにする）、CLI専用に割り切るか方針決定
+    - [ ] spawnする場合: socket ready のヘルスチェック/リトライ、終了時クリーンアップ、ログ制御
+    - [ ] CLI経由で起動している場合は `Ensure Deno renderer is running...` の常時出力を抑制（ノイズ削減）
+- [ ] **ルーティング/params の改善**
+    - [ ] `/users/123` の `123` を `params[:id]` に渡す（path params）
+    - [ ] ルート解決の責務整理（`Resource`名/`action`解決、405/404の切り分け）
+- [ ] **Resource RPC メタデータの整備**
+    - [ ] `Resource.rpc` で定義を保持（name/returns/params など）
+    - [ ] `lazuli types` に RPC 型（request/response）やクライアントスタブ生成を追加するか検討
 - [x] **Turbo Drive の統合**
     - [x] Turbo Drive をJSで自動注入（esm.sh）
-    - [ ] Turbo Frames/Streams の統合（必要なら）
+    - [ ] **Turbo Frames/Streams の統合（hooks最小方針）**
+        - [ ] Turbo Frames: フレームワーク側は特別な仕組みを増やさず、ユーザーが `<turbo-frame id="...">` を書けば動く前提を明文化
+        - [ ] Turbo Streams: Ruby側に最小APIを追加（Content-Type: `text/vnd.turbo-stream.html`）
+            - [ ] `Lazuli::TurboStream` ビルダー（`append/prepend/replace/update/remove/before/after` 等）
+            - [ ] `Lazuli::Resource#turbo_stream`（または `render_turbo_stream`）で複数操作をまとめて返せるようにする
+            - [ ] Content negotiation: `Accept: text/vnd.turbo-stream.html`（+ `?format=turbo_stream` の逃げ道）
+            - [ ] Turboが期待するリダイレクト/ステータス（302/303）と互換になるように整理
+        - [ ] `<template>` 内HTMLの生成戦略を決める
+            - [ ] 推奨案: Deno側に fragment render 用エンドポイント（例: `POST /render_fragment`）を追加してJSXで断片SSR
+            - [ ] 代替案: Rubyで文字列生成（最小）※HTML escape/安全性の取り扱い要注意
+            - [ ] どちらをデフォルトにするか決定・ドキュメント化
+        - [ ] exampleアプリでStreams実例（create/deleteでlistにappend/remove、Framesと併用）
+        - [ ] テスト: RackレベルでContent-Typeとturbo-streamタグ構造の検証
 
 ## 優先度: 中 (Enhancements)
 
@@ -35,9 +57,13 @@
     - [x] monorepo rootにGemfile/sorbet configを配置（VSCodeで動作）
     - [x] Rack向けの最小RBI shim追加
 
+- [ ] **テスト実行の整備**
+    - [ ] `packages/lazuli` のテストが `minitest` に依存しているので、開発依存に追加して `bundle exec ruby -Itest test/**/*_test.rb` を通す
+    - [ ] (任意) CI でテスト実行
+
 - [ ] **Islands Architecture の自動化**
     - [ ] `"use hydration"` ディレクティブの自動検出
-    - [ ] Hydration用スクリプトの自動注入 (現在は手動で `script` タグを書いている)
+    - [ ] Hydration用スクリプトの自動注入（現状: ユーザーが `<Island ...>` を書く必要がある）
 - [ ] **エラーハンドリングの強化**
     - [ ] Deno側でのレンダリングエラーをRuby側で適切にキャッチして表示
     - [ ] 開発モードでの詳細なエラー画面
@@ -46,6 +72,9 @@
     - [ ] `Lazuli::Repository` のベースクラス実装
 - [ ] **CLI UX拡張**
     - [ ] `generate resource`でslug/route指定とテンプレートコメント挿入
+- [ ] **ドキュメント整備**
+    - [ ] `packages/lazuli/README.md` を実用レベルに拡充（server/types/islands/turbo など）
+    - [ ] `packages/lazuli/docs/ARCHITECTURE.md` のディレクトリマッピング（views→pages/layouts/components等）を現状に合わせる
 - [ ] **サンプル拡充**
     - [ ] exampleにCRUDフローと複数Island例を追加
     - [ ] READMEに生成物/サンプルの利用手順を追記
