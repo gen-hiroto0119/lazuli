@@ -13,10 +13,12 @@ Gem::Specification.new do |spec|
   spec.required_ruby_version = ">= 3.0.0"
 
   spec.files = Dir.chdir(File.expand_path(__dir__)) do
-    Dir["{lib,assets}/**/*", "README.md", "LICENSE"]
+    Dir["{lib,assets,bin}/**/*", "README.md", "LICENSE"]
   end
+  spec.executables = ["lazuli"]
   spec.require_paths = ["lib"]
 
   # Core dependencies will be added here
   # spec.add_dependency "sqlite3"
+  spec.add_dependency "rack"
 end

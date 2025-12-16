@@ -1,0 +1,291 @@
+require "optparse"
+require "fileutils"
+require "timeout"
+
+require_relative "server_runner"
+require_relative "type_generator"
+
+module Lazuli
+  class CLI
+    def self.run(argv)
+      new(argv).run
+    end
+
+    def initialize(argv)
+      @argv = argv.dup
+    end
+
+    def run
+      cmd = @argv.shift
+      case cmd
+      when "server"
+        run_server(@argv)
+      when "new"
+        run_new(@argv)
+      when "types"
+        run_types(@argv)
+      when "generate"
+        run_generate(@argv)
+      else
+        puts usage
+        exit(cmd.nil? ? 0 : 1)
+      end
+    end
+
+    private
+
+    def run_server(argv)
+      options = {
+        app_root: Dir.pwd,
+        socket: nil,
+        port: 9292,
+        reload: false
+      }
+
+      parser = OptionParser.new do |o|
+        o.banner = "Usage: lazuli server [options]"
+        o.on("--app-root PATH", "Path to app root (default: cwd)") { |v| options[:app_root] = File.expand_path(v) }
+        o.on("--socket PATH", "Unix socket path for Deno renderer") { |v| options[:socket] = File.expand_path(v) }
+        o.on("--port PORT", Integer, "Rack port (default: 9292)") { |v| options[:port] = v }
+        o.on("--reload", "Enable naive file watcher to restart servers on change") { options[:reload] = true }
+      end
+      parser.parse!(argv)
+
+      runner = Lazuli::ServerRunner.new(**options)
+      runner.start
+    end
+
+    def run_new(argv)
+      name = argv.shift
+      if name.nil? || name.strip.empty?
+        abort "Usage: lazuli new <project_name>"
+      end
+
+      app_root = File.expand_path(name)
+      FileUtils.mkdir_p(app_root)
+
+      %w[components layouts pages repositories resources structs].each do |dir|
+        FileUtils.mkdir_p(File.join(app_root, "app", dir))
+      end
+      FileUtils.mkdir_p(File.join(app_root, "tmp", "sockets"))
+
+      write_file(File.join(app_root, "config.ru"), <<~RACK)
+        require "bundler/setup"
+        require "lazuli"
+
+        Dir[File.join(__dir__, "app", "**", "*.rb")].sort.each { |f| require f }
+
+        run Lazuli::App.new(root: __dir__)
+      RACK
+
+      write_file(File.join(app_root, "Gemfile"), <<~GEM)
+        source "https://rubygems.org"
+        gem "lazuli", path: "../lazuli"
+      GEM
+
+      write_file(File.join(app_root, "deno.json"), <<~JSON)
+        {
+          "imports": {
+            "hono": "npm:hono@^4",
+            "hono/": "npm:hono@^4/",
+            "hono/jsx": "npm:hono@^4/jsx",
+            "hono/jsx/dom": "npm:hono@^4/jsx/dom",
+            "lazuli/island": "../lazuli/assets/components/Island.tsx"
+          },
+          "compilerOptions": {
+            "jsx": "react-jsx",
+            "jsxImportSource": "hono/jsx"
+          }
+        }
+      JSON
+
+      write_file(File.join(app_root, "app", "layouts", "Application.tsx"), <<~TSX)
+        import { FC } from "hono/jsx";
+
+        const Application: FC = (props) => (
+          <html>
+            <head>
+              <title>#{name.capitalize}</title>
+              <meta charset="utf-8" />
+            </head>
+            <body>
+              <div id="root">{props.children}</div>
+            </body>
+          </html>
+        );
+
+        export default Application;
+      TSX
+
+      write_file(File.join(app_root, "app", "pages", "home.tsx"), <<~TSX)
+        export default function Home() {
+          return (
+            <div>
+              <h1>Welcome to #{name.capitalize}</h1>
+              <p>Powered by Lazuli.</p>
+            </div>
+          );
+        }
+      TSX
+
+      write_file(File.join(app_root, "app", "resources", "home_resource.rb"), <<~RUBY)
+        class HomeResource < Lazuli::Resource
+          def index
+            Render "home"
+          end
+        end
+      RUBY
+
+      puts "Created Lazuli app at #{app_root}"
+      puts "Next steps:"
+      puts "  cd #{name}"
+      puts "  bundle install"
+      puts "  lazuli server --reload"
+    end
+
+    def run_generate(argv)
+      sub = argv.shift
+      case sub
+      when "resource"
+        name = argv.shift
+        if name.nil? || name.strip.empty?
+          abort "Usage: lazuli generate resource <name> [app_root]"
+        end
+        app_root = File.expand_path(argv.shift || Dir.pwd)
+        generate_resource(app_root, name)
+      else
+        abort "Usage: lazuli generate resource <name> [app_root]"
+      end
+    end
+
+    def generate_resource(app_root, name)
+      classified = classify(name)
+      resource_class = "#{classified}Resource"
+      struct_class = classified
+      repo_module = "#{classified}Repository"
+
+      write_file(File.join(app_root, "app", "structs", "#{underscore(name)}.rb"), <<~RUBY)
+        class #{struct_class} < Lazuli::Struct
+          attribute :id, Integer
+          attribute :name, String
+        end
+      RUBY
+
+      write_file(File.join(app_root, "app", "repositories", "#{underscore(name)}_repository.rb"), <<~RUBY)
+        module #{repo_module}
+          extend self
+
+          def all
+            []
+          end
+
+          def find(id)
+            nil
+          end
+
+          def create(attrs)
+            nil
+          end
+
+          def update(id, attrs)
+            nil
+          end
+
+          def delete(id)
+            nil
+          end
+        end
+      RUBY
+
+      write_file(File.join(app_root, "app", "resources", "#{underscore(name)}_resource.rb"), <<~RUBY)
+        class #{resource_class} < Lazuli::Resource
+          def index
+            items = #{repo_module}.all
+            Render "#{underscore(name)}", #{underscore(name)}: items
+          end
+
+          def show
+            item = #{repo_module}.find(params[:id])
+            Render "#{underscore(name)}", #{underscore(name)}: item
+          end
+
+          def create
+            # params example: params[:#{underscore(name)}]
+            # #{repo_module}.create(params[:#{underscore(name)}])
+            Render "#{underscore(name)}", #{underscore(name)}: []
+          end
+
+          def update
+            # #{repo_module}.update(params[:id], params[:#{underscore(name)}])
+            Render "#{underscore(name)}", #{underscore(name)}: []
+          end
+
+          def destroy
+            # #{repo_module}.delete(params[:id])
+            Render "#{underscore(name)}", #{underscore(name)}: []
+          end
+        end
+      RUBY
+
+      write_file(File.join(app_root, "app", "pages", "#{underscore(name)}.tsx"), <<~TSX)
+        type #{struct_class} = {
+          id: number;
+          name: string;
+        };
+
+        export default function #{classified}Page(props: { #{underscore(name)}: #{struct_class}[] | #{struct_class} | null }) {
+          const items = Array.isArray(props.#{underscore(name)}) ? props.#{underscore(name)} as #{struct_class}[] : props.#{underscore(name)} ? [props.#{underscore(name)} as #{struct_class}] : [];
+          return (
+            <div>
+              <h1>#{classified}</h1>
+              <ul>
+                {items.map((item) => (
+                  <li key={item.id}>{item.name}</li>
+                ))}
+              </ul>
+            </div>
+          );
+        }
+      TSX
+
+      puts "Generated resource #{resource_class} at #{app_root}"
+    end
+
+    def classify(name)
+      name.split("_").map(&:capitalize).join
+    end
+
+    def underscore(name)
+      name.gsub(/::/, "/")
+          .gsub(/([A-Z]+)([A-Z][a-z])/, '\\1_\\2')
+          .gsub(/([a-z\d])([A-Z])/, '\\1_\\2')
+          .tr("-", "_")
+          .downcase
+    end
+
+    def run_types(argv)
+      app_root = argv.shift || Dir.pwd
+      app_root = File.expand_path(app_root)
+      out_path = File.join(app_root, "client.d.ts")
+      Lazuli::TypeGenerator.generate(app_root: app_root, out_path: out_path)
+      puts "Generated #{out_path}"
+    end
+
+    def write_file(path, content)
+      FileUtils.mkdir_p(File.dirname(path))
+      File.write(path, content)
+    end
+
+    def usage
+      <<~TXT
+        Usage: lazuli <command> [options]
+
+        Commands:
+          server       Start Ruby + Deno servers
+          new NAME     Create a new Lazuli project
+          generate     Generate code (resource)
+          types [PATH] Generate client.d.ts from Structs (default: cwd)
+      TXT
+    end
+  end
+end
