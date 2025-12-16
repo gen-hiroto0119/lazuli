@@ -15,11 +15,11 @@
 - [x] **Live Reload の高度化**
     - [x] EventSource (SSE) での通知（ポーリング廃止）
     - [x] ファイル変更をサーバープロセス再起動なしでpushする（Deno/Rubyのwatch統合）
-- [ ] **TypeGenerator の精緻化**
+- [x] **TypeGenerator の精緻化**
     - [x] Array/Optional/Struct参照の型推論強化
-    - [ ] Union型（非配列含む）の正確化
+    - [x] Union型（非配列含む）の正確化（`Lazuli::Types.any_of` 等）
     - [x] 型の重複出力回避とテスト追加
-    - [ ] 名前衝突ガード（例: `Admin::User` と `User`）
+    - [x] 名前衝突ガード（例: `Admin::User` と `User`）
 - [ ] **ServerRunner 改善**
     - [x] ウォッチ対象に config/deno.json を含める
     - [x] 終了時にDeno/Rackを停止しソケットをクリーンアップ（基本）
