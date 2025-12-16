@@ -9,7 +9,7 @@ module Lazuli
       @reload_token_path = ENV["LAZULI_RELOAD_TOKEN_PATH"] || File.join(@app_root, "tmp", "lazuli_reload_token")
       @reload_mtimes = {}
       Lazuli::Renderer.configure(socket_path: socket)
-      start_deno_process
+      # Deno process is managed by Lazuli::ServerRunner (CLI). Lazuli::App is a plain Rack app.
     end
 
     def call(env)
@@ -154,9 +154,8 @@ module Lazuli
     end
 
     def start_deno_process
-      # TODO: Implement process management
-      # For now, we assume the user started Deno manually or we print instructions
-      puts "[Lazuli] Ensure Deno renderer is running on #{Lazuli::Renderer.socket_path}"
+      # Reserved for a future opt-in mode where Lazuli::App can manage the Deno process.
+      # Current default: Lazuli::ServerRunner (CLI) manages it.
     end
   end
 end

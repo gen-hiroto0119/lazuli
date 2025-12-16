@@ -26,9 +26,9 @@
     - [ ] プロセスグループ/子プロセス含む完全停止
     - [ ] ログ簡素化・リトライ制御
 - [ ] **プロセスモデルの整理（App/ServerRunner）**
-    - [ ] `Lazuli::App#start_deno_process` を実装するか（rackup単体起動でもDenoをspawnできるようにする）、CLI専用に割り切るか方針決定
+    - [x] 方針: Deno管理は `Lazuli::ServerRunner`（CLI）に集約し、`Lazuli::App` はRackアプリとして純粋に保つ
+    - [ ] (任意) opt-inで `Lazuli::App#start_deno_process` を実装するか（rackup単体起動でもDenoをspawnできるようにする）
     - [ ] spawnする場合: socket ready のヘルスチェック/リトライ、終了時クリーンアップ、ログ制御
-    - [ ] CLI経由で起動している場合は `Ensure Deno renderer is running...` の常時出力を抑制（ノイズ削減）
 - [ ] **ルーティング/params の改善**
     - [ ] `/users/123` の `123` を `params[:id]` に渡す（path params）
     - [ ] ルート解決の責務整理（`Resource`名/`action`解決、405/404の切り分け）
