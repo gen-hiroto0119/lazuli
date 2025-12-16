@@ -1,0 +1,6 @@
+# Root sorbet config for editor tooling when opening the monorepo root.
+--dir=packages/lazuli/lib
+--dir=packages/lazuli/sorbet/rbi
+--ignore=vendor
+--ignore=tmp
+--typed=false
