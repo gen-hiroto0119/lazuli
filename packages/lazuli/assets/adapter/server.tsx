@@ -36,6 +36,31 @@ async function loadUserImports(appRoot: string) {
 }
 
 const app = new Hono();
+const reloadEnabled = Deno.env.get("LAZULI_RELOAD_ENABLED") === "1";
+const reloadToken = Deno.env.get("LAZULI_RELOAD_TOKEN") ?? crypto.randomUUID?.() ?? `${Date.now()}`;
+
+function contentTypeFor(ext: string): string {
+  switch (ext) {
+    case ".js":
+    case ".mjs":
+    case ".ts":
+    case ".tsx":
+      return "application/javascript";
+    case ".css":
+      return "text/css";
+    case ".json":
+      return "application/json";
+    case ".svg":
+      return "image/svg+xml";
+    case ".png":
+      return "image/png";
+    case ".jpg":
+    case ".jpeg":
+      return "image/jpeg";
+    default:
+      return "application/octet-stream";
+  }
+}
 
 // RPC Endpoint: Render a page
 app.post("/render", async (c) => {
@@ -79,13 +104,13 @@ app.post("/render", async (c) => {
       if (key.startsWith("hono")) {
         // Map hono to esm.sh for browser
         if (key === "hono") {
-          importMap.imports[key] = "https://esm.sh/hono@4?target=deno";
+          importMap.imports[key] = "https://esm.sh/hono@4";
         } else if (key === "hono/") {
-          importMap.imports[key] = "https://esm.sh/hono@4&target=deno/";
+          importMap.imports[key] = "https://esm.sh/hono@4/";
         } else {
-          // e.g. hono/jsx -> https://esm.sh/hono@4/jsx?target=deno
+          // e.g. hono/jsx -> https://esm.sh/hono@4/jsx
           const subpath = key.replace("hono/", "");
-          importMap.imports[key] = `https://esm.sh/hono@4/${subpath}?target=deno`;
+          importMap.imports[key] = `https://esm.sh/hono@4/${subpath}`;
         }
       } else if (key === "lazuli/island") {
         importMap.imports[key] = "/assets/components/Island.tsx";
@@ -97,14 +122,21 @@ app.post("/render", async (c) => {
         importMap.imports[key] = value as string;
       }
     }
+    importMap.imports["lazuli/island"] ||= "/assets/components/Island.tsx";
 
     // Inject Import Map into HEAD
     const doc = `<!DOCTYPE html>${body}`;
     const importMapScript = `<script type="importmap">${JSON.stringify(importMap)}</script>`;
-    
-    // Simple injection: replace </head> with script + </head>
-    // If no head, append to body (fallback)
-    const injectedHtml = doc.replace("</head>", `${importMapScript}</head>`);
+    const reloadScript = reloadEnabled ? `<script type="module">(function(){const initial="${reloadToken}";async function poll(){try{const res=await fetch("/__lazuli/reload");if(!res.ok) throw new Error();const data=await res.json();if(data.token!==initial){location.reload();return;}}catch(_e){}setTimeout(poll,1500);}poll();})();</script>` : "";
+    let injectedHtml = doc;
+
+    if (doc.includes("</head>")) {
+      injectedHtml = doc.replace("</head>", `${importMapScript}${reloadScript}</head>`);
+    } else if (doc.includes("<head>")) {
+      injectedHtml = doc.replace("<head>", `<head>${importMapScript}${reloadScript}`);
+    } else {
+      injectedHtml = `${importMapScript}${reloadScript}${doc}`;
+    }
 
     return c.html(injectedHtml);
   } catch (e) {
@@ -120,40 +152,59 @@ app.get("/assets/vendor/*", async (c) => {
   return c.text("Not Found", 404);
 });
 
+// Reload endpoint
+app.get("/__lazuli/reload", (c) => {
+  if (!reloadEnabled) {
+    return c.json({ token: reloadToken });
+  }
+  return c.json({ token: reloadToken });
+});
+
 // Asset Server
 app.get("/assets/*", async (c) => {
-  await initEsbuild();
   const path = c.req.path.replace("/assets/", "");
   const appRoot = resolve(args["app-root"]);
-  let filePath = join(appRoot, "app", path);
+  const primaryPath = join(appRoot, "app", path);
+  let filePath = primaryPath;
 
-  // Check if file exists in app root, otherwise fallback to Gem assets
   try {
-    await Deno.stat(filePath);
+    await Deno.stat(primaryPath);
   } catch {
     // Fallback to Gem assets
-    // server.tsx is in packages/lazuli/assets/adapter/
     const adapterDir = dirname(fromFileUrl(import.meta.url));
     const gemAssetsDir = resolve(adapterDir, "..");
-    filePath = join(gemAssetsDir, path);
+    const fallbackPath = join(gemAssetsDir, path);
+    try {
+      await Deno.stat(fallbackPath);
+      filePath = fallbackPath;
+    } catch {
+      return c.text("Not Found", 404);
+    }
   }
 
   try {
-    const content = await Deno.readTextFile(filePath);
-    
-    // Transform TSX to JS, but DO NOT BUNDLE.
-    // Leave imports as they are (bare specifiers).
-    // The browser will resolve them using the Import Map.
-    const result = await esbuild.transform(content, {
-      loader: "tsx",
-      format: "esm",
-      target: "es2022",
-      jsx: "automatic",
-      jsxImportSource: "hono/jsx",
-    });
+    const ext = extname(filePath).toLowerCase();
+    if (ext === ".ts" || ext === ".tsx") {
+      await initEsbuild();
+      const content = await Deno.readTextFile(filePath);
 
-    return c.body(result.code, 200, {
-      "Content-Type": "application/javascript",
+      // Transform TS/TSX to JS, but DO NOT BUNDLE.
+      const result = await esbuild.transform(content, {
+        loader: ext === ".tsx" ? "tsx" : "ts",
+        format: "esm",
+        target: "es2022",
+        jsx: "automatic",
+        jsxImportSource: "hono/jsx",
+      });
+
+      return c.body(result.code, 200, {
+        "Content-Type": "application/javascript",
+      });
+    }
+
+    const content = await Deno.readFile(filePath);
+    return c.body(content, 200, {
+      "Content-Type": contentTypeFor(ext),
     });
   } catch (e) {
     console.error("Transform error:", e);
@@ -165,6 +216,7 @@ app.get("/assets/*", async (c) => {
 if (args.socket) {
   // Unix Domain Socket
   try {
+    await ensureDir(dirname(args.socket));
     await Deno.remove(args.socket);
   } catch (e) {
     if (!(e instanceof Deno.errors.NotFound)) {
