@@ -53,15 +53,19 @@ module Lazuli
         merged_params["id"] ||= segments[1] if segments.length > 1 && !segments[1].to_s.empty?
         merged_params = merged_params.transform_keys { |k| k.to_s.to_sym }
 
-        resource = resource_class.new(merged_params)
+        resource = resource_class.new(merged_params, request: req)
 
         unless resource.respond_to?(action)
           return [405, { "content-type" => "text/plain" }, ["Action not allowed: #{resource_name}##{action}"]]
         end
 
-        html = resource.public_send(action)
-        
-        [200, { "content-type" => "text/html" }, [html]]
+        result = resource.public_send(action)
+
+        if result.is_a?(Array) && result.length == 3
+          return result
+        end
+
+        [200, { "content-type" => "text/html" }, [result.to_s]]
       rescue NameError
         [404, { "content-type" => "text/plain" }, ["Resource not found: #{resource_name}"]]
       rescue => e

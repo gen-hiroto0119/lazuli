@@ -1,5 +1,6 @@
 import Counter from "../../components/Counter.tsx";
 import Island from "lazuli/island";
+import UserRow from "../../components/UserRow.tsx";
 
 type User = {
   id: number;
@@ -10,14 +11,18 @@ export default function UsersIndex(props: { users: User[] }) {
   return (
     <div>
       <h1>Users List</h1>
-      <ul>
+
+      <form method="post" action="/users" style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+        <input name="name" placeholder="Name" />
+        <button type="submit">Add</button>
+      </form>
+
+      <ul id="users_list">
         {props.users.map((user) => (
-          <li>
-            {user.id}: {user.name}
-          </li>
+          <UserRow user={user} />
         ))}
       </ul>
-      
+
       <div style={{ "margin-top": "20px", border: "1px solid #ccc", padding: "10px" }}>
         <h3>Interactive Counter (Island)</h3>
         <Island 

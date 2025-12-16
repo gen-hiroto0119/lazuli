@@ -17,6 +17,14 @@ module Lazuli
       response[:body]
     end
 
+    def self.render_turbo_stream(operations)
+      response = new.post("/render_turbo_stream", { streams: operations })
+      if response[:status] && response[:status] >= 400
+        raise Lazuli::Error, "Turbo Stream render failed (#{response[:status]}): #{response[:body]}"
+      end
+      response[:body]
+    end
+
     def self.asset(path)
       new.get(path)
     end

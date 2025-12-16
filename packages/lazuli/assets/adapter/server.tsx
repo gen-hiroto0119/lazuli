@@ -71,6 +71,49 @@ function contentTypeFor(ext: string): string {
   }
 }
 
+async function renderFragment(appRoot: string, fragment: string, props: Record<string, unknown>) {
+  const fragmentPath = join(appRoot, "app", `${fragment}.tsx`);
+  const mtime = (await Deno.stat(fragmentPath)).mtime?.getTime() ?? Date.now();
+  const mod = await import(`${toFileUrl(fragmentPath).href}?t=${mtime}`);
+  const Component = mod.default;
+  if (!Component) {
+    throw new Error(`Fragment component not found at ${fragmentPath}`);
+  }
+  const rendered = html`${<Component {...props} />}`;
+  return String(rendered);
+}
+
+// RPC Endpoint: Render Turbo Streams (fragments)
+app.post("/render_turbo_stream", async (c) => {
+  try {
+    const { streams } = await c.req.json();
+    const appRoot = resolve(args["app-root"]);
+
+    const parts: string[] = [];
+    for (const s of (streams || []) as Array<any>) {
+      const action = String(s.action || "");
+      const target = String(s.target || "");
+
+      if (!action || !target) continue;
+
+      if (action === "remove") {
+        parts.push(`<turbo-stream action="remove" target="${target}"></turbo-stream>`);
+        continue;
+      }
+
+      const fragment = String(s.fragment || "");
+      const props = (s.props || {}) as Record<string, unknown>;
+      const inner = await renderFragment(appRoot, fragment, props);
+      parts.push(`<turbo-stream action="${action}" target="${target}"><template>${inner}</template></turbo-stream>`);
+    }
+
+    return c.body(parts.join(""), 200, { "Content-Type": "text/vnd.turbo-stream.html" });
+  } catch (e) {
+    console.error("Turbo Stream render error:", e);
+    return c.text(e.toString(), 500);
+  }
+});
+
 // RPC Endpoint: Render a page
 app.post("/render", async (c) => {
   try {
