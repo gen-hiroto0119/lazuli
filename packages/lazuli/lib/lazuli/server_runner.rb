@@ -9,6 +9,7 @@ module Lazuli
     def initialize(app_root:, socket:, port: DEFAULT_PORT, reload: false)
       @app_root = File.expand_path(app_root)
       @socket_path = File.expand_path(socket || File.join(@app_root, "tmp", "sockets", "lazuli-renderer.sock"))
+      @reload_token_path = File.join(@app_root, "tmp", "lazuli_reload_token")
       @port = port || DEFAULT_PORT
       @reload = reload
       @pids = {}
@@ -16,8 +17,13 @@ module Lazuli
 
     def start
       FileUtils.mkdir_p(File.dirname(@socket_path))
+      FileUtils.mkdir_p(File.dirname(@reload_token_path))
       ENV["LAZULI_APP_ROOT"] = @app_root
       ENV["LAZULI_SOCKET"] = @socket_path
+      ENV["LAZULI_RELOAD_ENABLED"] = @reload ? "1" : nil
+      ENV["LAZULI_RELOAD_TOKEN_PATH"] = @reload_token_path
+
+      bump_reload_token if @reload
 
       start_processes
       start_watcher if @reload
@@ -33,9 +39,8 @@ module Lazuli
 
       generate_types
 
-      token = Time.now.to_f.to_s
+      token = current_reload_token
       ENV["LAZULI_RELOAD_TOKEN"] = token if @reload
-      ENV["LAZULI_RELOAD_ENABLED"] = @reload ? "1" : nil
 
       deno_cmd = [
         "deno", "run", "-A", "--unstable-net",
@@ -54,7 +59,8 @@ module Lazuli
         "LAZULI_APP_ROOT" => @app_root,
         "LAZULI_SOCKET" => @socket_path,
         "LAZULI_RELOAD_TOKEN" => token,
-        "LAZULI_RELOAD_ENABLED" => @reload ? "1" : nil
+        "LAZULI_RELOAD_ENABLED" => @reload ? "1" : nil,
+        "LAZULI_RELOAD_TOKEN_PATH" => @reload_token_path
       }.compact
       @pids[:deno] = Process.spawn(deno_env, *deno_cmd, chdir: @app_root, out: $stdout, err: $stderr)
       puts "[Lazuli] Deno PID: #{@pids[:deno]}"
@@ -65,7 +71,8 @@ module Lazuli
           "LAZULI_APP_ROOT" => @app_root,
           "LAZULI_SOCKET" => @socket_path,
           "LAZULI_RELOAD_TOKEN" => token,
-          "LAZULI_RELOAD_ENABLED" => @reload ? "1" : nil
+          "LAZULI_RELOAD_ENABLED" => @reload ? "1" : nil,
+          "LAZULI_RELOAD_TOKEN_PATH" => @reload_token_path
         },
         *rack_cmd,
         chdir: @app_root,
@@ -79,12 +86,13 @@ module Lazuli
       @watcher_thread = Thread.new do
         previous = checksum
         loop do
-          sleep 1.5
+          sleep 1.0
           current = checksum
           next if current == previous
           previous = current
-          puts "[Lazuli] Change detected. Restarting servers..."
-          start_processes
+          puts "[Lazuli] Change detected. Reloading (no restart)..."
+          generate_types
+          bump_reload_token
         end
       end
     end
@@ -116,6 +124,10 @@ module Lazuli
         File.delete(@socket_path) if File.exist?(@socket_path)
       rescue StandardError
       end
+      begin
+        File.delete(@reload_token_path) if File.exist?(@reload_token_path)
+      rescue StandardError
+      end
     end
 
     def stop_process(key)
@@ -135,6 +147,20 @@ module Lazuli
       Lazuli::TypeGenerator.generate(app_root: @app_root, out_path: out_path)
     rescue StandardError => e
       warn "[Lazuli] Type generation failed: #{e.message}"
+    end
+
+    def current_reload_token
+      File.read(@reload_token_path).to_s.strip
+    rescue StandardError
+      ""
+    end
+
+    def bump_reload_token
+      token = Time.now.to_f.to_s
+      File.write(@reload_token_path, token)
+      ENV["LAZULI_RELOAD_TOKEN"] = token
+    rescue StandardError => e
+      warn "[Lazuli] Reload token update failed: #{e.message}"
     end
 
     def adapter_path

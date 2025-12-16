@@ -39,6 +39,15 @@ const app = new Hono();
 const reloadEnabled = Deno.env.get("LAZULI_RELOAD_ENABLED") === "1";
 const reloadToken = Deno.env.get("LAZULI_RELOAD_TOKEN") ?? crypto.randomUUID?.() ?? `${Date.now()}`;
 
+async function loadReloadToken(appRoot: string): Promise<string> {
+  const tokenPath = Deno.env.get("LAZULI_RELOAD_TOKEN_PATH") ?? join(appRoot, "tmp", "lazuli_reload_token");
+  try {
+    return (await Deno.readTextFile(tokenPath)).trim();
+  } catch {
+    return reloadToken;
+  }
+}
+
 function contentTypeFor(ext: string): string {
   switch (ext) {
     case ".js":
@@ -72,9 +81,11 @@ app.post("/render", async (c) => {
     const pagePath = join(appRoot, "app", "pages", `${page}.tsx`);
     const layoutPath = join(appRoot, "app", "layouts", "Application.tsx");
 
-    // Import modules
-    const PageModule = await import(toFileUrl(pagePath).href);
-    const LayoutModule = await import(toFileUrl(layoutPath).href);
+    // Import modules (cache-busted for hot reload)
+    const pageMtime = (await Deno.stat(pagePath)).mtime?.getTime() ?? Date.now();
+    const layoutMtime = (await Deno.stat(layoutPath)).mtime?.getTime() ?? Date.now();
+    const PageModule = await import(`${toFileUrl(pagePath).href}?t=${pageMtime}`);
+    const LayoutModule = await import(`${toFileUrl(layoutPath).href}?t=${layoutMtime}`);
 
     const PageComponent = PageModule.default;
     const LayoutComponent = LayoutModule.default;
@@ -127,7 +138,8 @@ app.post("/render", async (c) => {
     // Inject Import Map into HEAD
     const doc = `<!DOCTYPE html>${body}`;
     const importMapScript = `<script type="importmap">${JSON.stringify(importMap)}</script>`;
-    const reloadScript = reloadEnabled ? `<script type="module">(function(){const initial="${reloadToken}";const es=new EventSource("/__lazuli/events");es.onmessage=(ev)=>{const token=String(ev.data||"");if(token&&token!==initial){location.reload();}};es.onerror=()=>{/* rely on EventSource auto-reconnect */};})();</script>` : "";
+    const currentToken = await loadReloadToken(appRoot);
+    const reloadScript = reloadEnabled ? `<script type="module">(function(){const initial="${currentToken}";const es=new EventSource("/__lazuli/events");es.onmessage=(ev)=>{const token=String(ev.data||"");if(token&&token!==initial){location.reload();}};es.onerror=()=>{/* rely on EventSource auto-reconnect */};})();</script>` : "";
     let injectedHtml = doc;
 
     if (doc.includes("</head>")) {
@@ -152,12 +164,11 @@ app.get("/assets/vendor/*", async (c) => {
   return c.text("Not Found", 404);
 });
 
-// Reload endpoint
-app.get("/__lazuli/reload", (c) => {
-  if (!reloadEnabled) {
-    return c.json({ token: reloadToken });
-  }
-  return c.json({ token: reloadToken });
+// Reload endpoint (compat)
+app.get("/__lazuli/reload", async (c) => {
+  const appRoot = resolve(args["app-root"]);
+  const token = await loadReloadToken(appRoot);
+  return c.json({ token });
 });
 
 // Asset Server

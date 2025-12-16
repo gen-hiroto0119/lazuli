@@ -23,4 +23,18 @@ class ServerRunnerTest < Minitest::Test
       assert_includes File.read(out_path), "id: number;"
     end
   end
+
+  def test_bump_reload_token_updates_token_file
+    Dir.mktmpdir do |dir|
+      app_root = File.join(dir, "app_root")
+      FileUtils.mkdir_p(File.join(app_root, "tmp", "sockets"))
+
+      runner = Lazuli::ServerRunner.new(app_root: app_root, socket: nil, port: 9292, reload: true)
+      runner.send(:bump_reload_token)
+
+      token_path = File.join(app_root, "tmp", "lazuli_reload_token")
+      assert File.exist?(token_path)
+      assert_match(/\d+\.\d+/, File.read(token_path))
+    end
+  end
 end

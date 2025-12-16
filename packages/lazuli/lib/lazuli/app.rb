@@ -5,11 +5,16 @@ module Lazuli
     def initialize(root: nil, socket: nil)
       @app_root = File.expand_path(root || ENV["LAZULI_APP_ROOT"] || Dir.pwd)
       ENV["LAZULI_APP_ROOT"] ||= @app_root
+      @reload_enabled = ENV["LAZULI_RELOAD_ENABLED"] == "1"
+      @reload_token_path = ENV["LAZULI_RELOAD_TOKEN_PATH"] || File.join(@app_root, "tmp", "lazuli_reload_token")
+      @reload_mtimes = {}
       Lazuli::Renderer.configure(socket_path: socket)
       start_deno_process
     end
 
     def call(env)
+      reload_app_code! if @reload_enabled
+
       req = Rack::Request.new(env)
       path = req.path_info
       
@@ -102,7 +107,6 @@ module Lazuli
     end
 
     def sse_response
-      token = ENV["LAZULI_RELOAD_TOKEN"].to_s
       headers = {
         "content-type" => "text/event-stream",
         "cache-control" => "no-cache",
@@ -110,14 +114,43 @@ module Lazuli
       }
 
       body = Enumerator.new do |y|
-        y << "data: #{token}\n\n"
+        last = read_reload_token
+        y << "data: #{last}\n\n"
+
+        ticks = 0
         loop do
-          sleep 15
-          y << ": keep-alive\n\n"
+          sleep 0.5
+          ticks += 1
+
+          current = read_reload_token
+          if current != last
+            last = current
+            y << "data: #{last}\n\n"
+          elsif ticks % 30 == 0
+            y << ": keep-alive\n\n"
+          end
         end
       end
 
       [200, headers, body]
+    end
+
+    def read_reload_token
+      File.read(@reload_token_path).to_s.strip
+    rescue StandardError
+      ENV["LAZULI_RELOAD_TOKEN"].to_s
+    end
+
+    def reload_app_code!
+      app_glob = File.join(@app_root, "app", "**", "*.rb")
+      Dir[app_glob].sort.each do |file|
+        mtime = File.mtime(file).to_f rescue 0
+        next if @reload_mtimes[file] && @reload_mtimes[file] >= mtime
+        load file
+        @reload_mtimes[file] = mtime
+      end
+    rescue StandardError => e
+      warn "[Lazuli] Code reload failed: #{e.message}"
     end
 
     def start_deno_process

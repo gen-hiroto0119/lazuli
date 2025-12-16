@@ -14,7 +14,7 @@
     - [x] Struct変更検知→自動生成（`lazuli server --reload` の再起動時に追従）
 - [ ] **Live Reload の高度化**
     - [x] EventSource (SSE) での通知（ポーリング廃止）
-    - [ ] ファイル変更をサーバープロセス再起動なしでpushする（Deno/Rubyのwatch統合）
+    - [x] ファイル変更をサーバープロセス再起動なしでpushする（Deno/Rubyのwatch統合）
 - [ ] **TypeGenerator の精緻化**
     - [x] Array/Optional/Struct参照の型推論強化
     - [ ] Union型（非配列含む）の正確化
