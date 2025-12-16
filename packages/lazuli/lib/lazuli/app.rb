@@ -16,6 +16,11 @@ module Lazuli
       # Remove leading slash
       path = path[1..-1] if path.start_with?("/")
 
+      # Live Reload (SSE)
+      if path == "__lazuli/events"
+        return sse_response
+      end
+
       # Asset/Dev Proxy
       if path.start_with?("assets/") || path.start_with?("__lazuli/")
         response = Lazuli::Renderer.asset("/" + path)
@@ -94,6 +99,25 @@ module Lazuli
       else
         "application/octet-stream"
       end
+    end
+
+    def sse_response
+      token = ENV["LAZULI_RELOAD_TOKEN"].to_s
+      headers = {
+        "content-type" => "text/event-stream",
+        "cache-control" => "no-cache",
+        "connection" => "keep-alive",
+      }
+
+      body = Enumerator.new do |y|
+        y << "data: #{token}\n\n"
+        loop do
+          sleep 15
+          y << ": keep-alive\n\n"
+        end
+      end
+
+      [200, headers, body]
     end
 
     def start_deno_process

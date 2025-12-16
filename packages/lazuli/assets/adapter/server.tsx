@@ -127,7 +127,7 @@ app.post("/render", async (c) => {
     // Inject Import Map into HEAD
     const doc = `<!DOCTYPE html>${body}`;
     const importMapScript = `<script type="importmap">${JSON.stringify(importMap)}</script>`;
-    const reloadScript = reloadEnabled ? `<script type="module">(function(){const initial="${reloadToken}";async function poll(){try{const res=await fetch("/__lazuli/reload");if(!res.ok) throw new Error();const data=await res.json();if(data.token!==initial){location.reload();return;}}catch(_e){}setTimeout(poll,1500);}poll();})();</script>` : "";
+    const reloadScript = reloadEnabled ? `<script type="module">(function(){const initial="${reloadToken}";const es=new EventSource("/__lazuli/events");es.onmessage=(ev)=>{const token=String(ev.data||"");if(token&&token!==initial){location.reload();}};es.onerror=()=>{/* rely on EventSource auto-reconnect */};})();</script>` : "";
     let injectedHtml = doc;
 
     if (doc.includes("</head>")) {
