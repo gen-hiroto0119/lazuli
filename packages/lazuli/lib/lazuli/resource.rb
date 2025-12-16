@@ -37,8 +37,19 @@ module Lazuli
     def turbo_stream
       stream = Lazuli::TurboStream.new
       yield stream
-      body = Lazuli::Renderer.render_turbo_stream(normalize_value(stream.operations))
-      [200, { "content-type" => "text/vnd.turbo-stream.html; charset=utf-8", "vary" => "accept" }, [body]]
+
+      begin
+        body = Lazuli::Renderer.render_turbo_stream(normalize_value(stream.operations))
+        return [200, { "content-type" => "text/vnd.turbo-stream.html; charset=utf-8", "vary" => "accept" }, [body]]
+      rescue StandardError => e
+        msg = escape_html(e.message)
+        body = %(<turbo-stream action="update" target="flash"><template><pre>#{msg}</pre></template></turbo-stream>)
+        return [500, { "content-type" => "text/vnd.turbo-stream.html; charset=utf-8", "vary" => "accept" }, [body]]
+      end
+    end
+
+    def escape_html(s)
+      s.to_s.gsub("&", "&amp;").gsub("<", "&lt;").gsub(">", "&gt;").gsub('"', "&quot;")
     end
 
     def redirect_to(location, status: nil)

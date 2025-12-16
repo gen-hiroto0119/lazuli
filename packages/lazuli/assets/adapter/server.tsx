@@ -91,6 +91,16 @@ async function renderFragment(appRoot: string, fragment: string, props: Record<s
   return String(rendered);
 }
 
+const FRAGMENT_PATTERN = /^[a-zA-Z0-9_\-/]+$/;
+
+function validateFragment(fragment: string): boolean {
+  if (!fragment) return false;
+  if (!FRAGMENT_PATTERN.test(fragment)) return false;
+  if (fragment.includes("..")) return false;
+  if (fragment.startsWith("/")) return false;
+  return true;
+}
+
 // RPC Endpoint: Render Turbo Streams (fragments)
 app.post("/render_turbo_stream", async (c) => {
   try {
@@ -100,26 +110,30 @@ app.post("/render_turbo_stream", async (c) => {
     const parts: string[] = [];
     for (const s of (streams || []) as Array<any>) {
       const action = String(s.action || "");
-      const target = String(s.target || "");
+      const target = s.target != null ? String(s.target) : "";
+      const targets = s.targets != null ? String(s.targets) : "";
 
-      if (!action || !target) continue;
+      if (!action) continue;
+      if (!target && !targets) continue;
 
       const actionAttr = escapeAttr(action);
-      const targetAttr = escapeAttr(target);
+      const targetAttr = target ? escapeAttr(target) : "";
+      const targetsAttr = targets ? escapeAttr(targets) : "";
+      const selectorAttr = targetsAttr ? `targets="${targetsAttr}"` : `target="${targetAttr}"`;
 
       if (action === "remove") {
-        parts.push(`<turbo-stream action="remove" target="${targetAttr}"></turbo-stream>`);
+        parts.push(`<turbo-stream action="remove" ${selectorAttr}></turbo-stream>`);
         continue;
       }
 
       const fragment = String(s.fragment || "");
-      if (!fragment) {
-        return c.text("Missing fragment for turbo stream operation", 400);
+      if (!validateFragment(fragment)) {
+        return c.text("Invalid fragment for turbo stream operation", 400);
       }
 
       const props = (s.props || {}) as Record<string, unknown>;
       const inner = await renderFragment(appRoot, fragment, props);
-      parts.push(`<turbo-stream action="${actionAttr}" target="${targetAttr}"><template>${inner}</template></turbo-stream>`);
+      parts.push(`<turbo-stream action="${actionAttr}" ${selectorAttr}><template>${inner}</template></turbo-stream>`);
     }
 
     return c.body(parts.join(""), 200, { "Content-Type": "text/vnd.turbo-stream.html; charset=utf-8" });

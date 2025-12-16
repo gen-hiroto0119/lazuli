@@ -109,6 +109,33 @@ class TurboStreamResourceTest < Minitest::Test
     assert_equal "/", headers["location"]
   end
 
+  def test_targets_are_preserved_in_operations
+    captured = nil
+    original = Lazuli::Renderer.method(:render_turbo_stream)
+    Lazuli::Renderer.define_singleton_method(:render_turbo_stream) do |ops|
+      captured = ops
+      "<turbo-stream></turbo-stream>"
+    end
+
+    req = RequestStub.new("text/vnd.turbo-stream.html")
+    status, _headers, _body = Lazuli::Resource.new({}, request: req).turbo_stream do |t|
+      t.remove targets: ".row"
+    end
+    assert_equal 200, status
+    assert_equal ".row", captured.first[:targets]
+  ensure
+    Lazuli::Renderer.define_singleton_method(:render_turbo_stream, &original)
+  end
+
+  def test_invalid_fragment_is_rejected
+    req = RequestStub.new("text/vnd.turbo-stream.html")
+    assert_raises(ArgumentError) do
+      Lazuli::Resource.new({}, request: req).turbo_stream do |t|
+        t.append "list", fragment: "../secrets", props: {}
+      end
+    end
+  end
+
   def test_redirect_to_defaults_to_303_without_request
     status, headers, _body = Lazuli::Resource.new.redirect_to("/x")
     assert_equal 303, status
