@@ -38,7 +38,7 @@ module Lazuli
       stream = Lazuli::TurboStream.new
       yield stream
       body = Lazuli::Renderer.render_turbo_stream(normalize_value(stream.operations))
-      [200, { "content-type" => "text/vnd.turbo-stream.html", "vary" => "accept" }, [body]]
+      [200, { "content-type" => "text/vnd.turbo-stream.html; charset=utf-8", "vary" => "accept" }, [body]]
     end
 
     def redirect_to(location, status: nil)

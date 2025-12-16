@@ -71,6 +71,14 @@ function contentTypeFor(ext: string): string {
   }
 }
 
+function escapeAttr(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
 async function renderFragment(appRoot: string, fragment: string, props: Record<string, unknown>) {
   const fragmentPath = join(appRoot, "app", `${fragment}.tsx`);
   const mtime = (await Deno.stat(fragmentPath)).mtime?.getTime() ?? Date.now();
@@ -96,18 +104,25 @@ app.post("/render_turbo_stream", async (c) => {
 
       if (!action || !target) continue;
 
+      const actionAttr = escapeAttr(action);
+      const targetAttr = escapeAttr(target);
+
       if (action === "remove") {
-        parts.push(`<turbo-stream action="remove" target="${target}"></turbo-stream>`);
+        parts.push(`<turbo-stream action="remove" target="${targetAttr}"></turbo-stream>`);
         continue;
       }
 
       const fragment = String(s.fragment || "");
+      if (!fragment) {
+        return c.text("Missing fragment for turbo stream operation", 400);
+      }
+
       const props = (s.props || {}) as Record<string, unknown>;
       const inner = await renderFragment(appRoot, fragment, props);
-      parts.push(`<turbo-stream action="${action}" target="${target}"><template>${inner}</template></turbo-stream>`);
+      parts.push(`<turbo-stream action="${actionAttr}" target="${targetAttr}"><template>${inner}</template></turbo-stream>`);
     }
 
-    return c.body(parts.join(""), 200, { "Content-Type": "text/vnd.turbo-stream.html" });
+    return c.body(parts.join(""), 200, { "Content-Type": "text/vnd.turbo-stream.html; charset=utf-8" });
   } catch (e) {
     console.error("Turbo Stream render error:", e);
     return c.text(e.toString(), 500);

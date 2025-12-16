@@ -47,7 +47,7 @@ class TurboStreamResourceTest < Minitest::Test
     req = RequestStub.new("text/vnd.turbo-stream.html, text/html")
     status, headers, body = MyResource.new({}, request: req).create
     assert_equal 200, status
-    assert_equal "text/vnd.turbo-stream.html", headers["content-type"]
+    assert_equal "text/vnd.turbo-stream.html; charset=utf-8", headers["content-type"]
     assert_equal "accept", headers["vary"]
     assert_includes body.join, "turbo-stream"
 
@@ -67,7 +67,7 @@ class TurboStreamResourceTest < Minitest::Test
 
     status, headers, _body = MyResource.new({ format: "turbo_stream" }, request: EmptyRequest.new).create
     assert_equal 200, status
-    assert_equal "text/vnd.turbo-stream.html", headers["content-type"]
+    assert_equal "text/vnd.turbo-stream.html; charset=utf-8", headers["content-type"]
   ensure
     Lazuli::Renderer.define_singleton_method(:render_turbo_stream, &original)
   end
@@ -86,7 +86,7 @@ class TurboStreamResourceTest < Minitest::Test
     req = RequestStub.new("text/html;q=1.0, text/vnd.turbo-stream.html;q=0.9")
     status, headers, _body = MyResource.new({}, request: req).create
     assert_equal 200, status
-    assert_equal "text/vnd.turbo-stream.html", headers["content-type"]
+    assert_equal "text/vnd.turbo-stream.html; charset=utf-8", headers["content-type"]
   ensure
     Lazuli::Renderer.define_singleton_method(:render_turbo_stream, &original)
   end

@@ -22,6 +22,14 @@ module Lazuli
       op(:update, target, fragment: fragment, props: props)
     end
 
+    def before(target, fragment:, props: {})
+      op(:before, target, fragment: fragment, props: props)
+    end
+
+    def after(target, fragment:, props: {})
+      op(:after, target, fragment: fragment, props: props)
+    end
+
     def remove(target)
       @operations << { action: :remove, target: target }
       nil
