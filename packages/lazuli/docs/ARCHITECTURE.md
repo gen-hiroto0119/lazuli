@@ -18,7 +18,7 @@ Lazuliは Ruby (Rack) と Deno (Renderer/Assets) の **2プロセス** で動作
 ### ライフサイクル（起動方法）
 
 *   **開発/統合起動:** `lazuli dev` が `Lazuli::ServerRunner` として Rack + Deno を同時に起動し、終了シグナルで両方を確実に停止します。
-*   **Rack単体起動:** `bundle exec rackup` / `lazuli server` は Rack のみ起動します（Deno spawn はしません）。Renderer は別プロセスで起動してください（例: `deno run ... "$(bundle show lazuli)/assets/adapter/server.tsx" --app-root $(pwd) --socket tmp/sockets/lazuli-renderer.sock`）。
+*   **Rack単体起動:** `bundle exec rackup` / `lazuli server` は Rack のみ起動します（Deno spawn はしません）。Renderer は別プロセスで起動してください（例: `deno run -A --unstable-net --config "$(bundle show lazuli)/assets/adapter/deno.json" "$(bundle show lazuli)/assets/adapter/server.tsx" --app-root $(pwd) --socket $(pwd)/tmp/sockets/lazuli-renderer.sock`）。
 
 Turbo Streams の `<template>` 断片は Ruby では生成せず、Ruby は「operation を積む」だけに徹し、Deno が JSX fragment をレンダリングします。Ruby 側は `stream { ... }`（=`turbo_stream`）で操作を組み立て、`t.append "list", "components/Row", id: 1` のように `props:` を省略できます。
 
@@ -28,7 +28,7 @@ Turbo Streams の `<template>` 断片は Ruby では生成せず、Ruby は「op
 
 1.  **Runner Boot:** `Lazuli::ServerRunner` が起動。
 2.  **Socket Check:** 既存のソケットファイルを確認し、クリーンアップします。
-3.  **Deno Spawn:** `deno run -A --unstable-net ...` でRendererを起動し、socket ready を待ちます。
+3.  **Deno Spawn:** `deno run -A --unstable-net --config "$(bundle show lazuli)/assets/adapter/deno.json" "$(bundle show lazuli)/assets/adapter/server.tsx" --app-root $(pwd) --socket $(pwd)/tmp/sockets/lazuli-renderer.sock` でRendererを起動し、socket ready を待ちます。
 4.  **Rack Spawn:** `bundle exec rackup` でRackサーバーを起動します。
 5.  **Ready:** HTTPトラフィックの受け付けを開始します。
 

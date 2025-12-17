@@ -11,7 +11,8 @@ Ruby for routing/thinking + Deno(Hono JSX) for rendering.
 ### Starting the Deno renderer (rack-only mode)
 
 ```sh
-deno run -A --unstable-net --config ./deno.json \
+deno run -A --unstable-net \
+  --config "$(bundle show lazuli)/assets/adapter/deno.json" \
   "$(bundle show lazuli)/assets/adapter/server.tsx" \
   --app-root "$(pwd)" \
   --socket "$(pwd)/tmp/sockets/lazuli-renderer.sock"
