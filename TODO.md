@@ -54,8 +54,8 @@
     - [x] ログ簡素化・リトライ制御（LAZULI_QUIET/LAZULI_DEBUG、socket-ready待ち + retry）
 - [x] **プロセスモデルの整理（App/ServerRunner）**
     - [x] 方針: Deno管理は `Lazuli::ServerRunner`（CLI）に集約し、`Lazuli::App` はRackアプリとして純粋に保つ
-    - [x] 決定: `bundle exec rackup` は **Rackのみ**（Deno spawn はしない）。開発/本番は `lazuli dev` / `lazuli server`（Rack+Deno）か、Denoを別プロセスで運用する
-    - [x] `lazuli server` の位置づけ: watcher無しの統合起動（Rack+Deno）。`lazuli dev` は `--reload` で開発用ホットリロード
+    - [x] 決定: `bundle exec rackup` / `lazuli server` は **Rackのみ**（Deno spawn はしない）。Deno renderer は別プロセスで運用する
+    - [x] `lazuli dev` の位置づけ: 開発用の統合起動（Rack+Deno）。`--reload` で簡易ホットリロード
 
 - [x] **Turbo Drive の統合**
     - [x] Turbo Drive をJSで自動注入（esm.sh）

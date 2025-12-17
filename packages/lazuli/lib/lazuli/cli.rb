@@ -19,9 +19,9 @@ module Lazuli
       cmd = @argv.shift
       case cmd
       when "dev"
-        run_server(@argv, cmd_name: "dev")
+        run_server_runner(@argv, cmd_name: "dev")
       when "server"
-        run_server(@argv, cmd_name: "server")
+        run_rack_only(@argv)
       when "new"
         run_new(@argv)
       when "types"
@@ -36,7 +36,7 @@ module Lazuli
 
     private
 
-    def run_server(argv, cmd_name: "server")
+    def run_server_runner(argv, cmd_name: "dev")
       options = {
         app_root: Dir.pwd,
         socket: nil,
@@ -55,6 +55,32 @@ module Lazuli
 
       runner = Lazuli::ServerRunner.new(**options)
       runner.start
+    end
+
+    def run_rack_only(argv)
+      options = {
+        app_root: Dir.pwd,
+        socket: nil,
+        port: 9292
+      }
+
+      parser = OptionParser.new do |o|
+        o.banner = "Usage: lazuli server [options]"
+        o.on("--app-root PATH", "Path to app root (default: cwd)") { |v| options[:app_root] = File.expand_path(v) }
+        o.on("--socket PATH", "Unix socket path for Deno renderer") { |v| options[:socket] = File.expand_path(v) }
+        o.on("--port PORT", Integer, "Rack port (default: 9292)") { |v| options[:port] = v }
+      end
+      parser.parse!(argv)
+
+      app_root = File.expand_path(options[:app_root])
+      socket_path = File.expand_path(options[:socket] || File.join(app_root, "tmp", "sockets", "lazuli-renderer.sock"))
+
+      ENV["LAZULI_APP_ROOT"] = app_root
+      ENV["LAZULI_SOCKET"] = socket_path
+
+      Dir.chdir(app_root) do
+        exec "bundle", "exec", "rackup", "-p", options[:port].to_s
+      end
     end
 
     def run_new(argv)
@@ -283,8 +309,8 @@ module Lazuli
         Usage: lazuli <command> [options]
 
         Commands:
-          dev          Start Ruby + Deno servers (development)
-          server       Start Ruby + Deno servers
+          dev          Start Rack + Deno (development; use --reload for watcher)
+          server       Start Rack only (expects separately-managed Deno renderer)
           new NAME     Create a new Lazuli project
           generate     Generate code (resource)
           types [PATH] Generate client.d.ts from Structs (default: cwd)

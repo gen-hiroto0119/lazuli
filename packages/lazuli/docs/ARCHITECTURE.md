@@ -17,10 +17,10 @@ Lazuliは Ruby (Rack) と Deno (Renderer/Assets) の **2プロセス** で動作
 
 ### ライフサイクル（起動方法）
 
-*   **開発/統合起動:** `lazuli dev` / `lazuli server` が `Lazuli::ServerRunner` として Rack + Deno を同時に起動し、終了シグナルで両方を確実に停止します。
-*   **Rack単体起動:** `bundle exec rackup` は Rack のみ起動します（Deno spawn はしません）。Renderer は別プロセスで起動するか、CLIで統合起動してください。
+*   **開発/統合起動:** `lazuli dev` が `Lazuli::ServerRunner` として Rack + Deno を同時に起動し、終了シグナルで両方を確実に停止します。
+*   **Rack単体起動:** `bundle exec rackup` / `lazuli server` は Rack のみ起動します（Deno spawn はしません）。Renderer は別プロセスで起動してください。
 
-### 起動シーケンス（lazuli dev/server）
+### 起動シーケンス（lazuli dev）
 
 1.  **Runner Boot:** `Lazuli::ServerRunner` が起動。
 2.  **Socket Check:** 既存のソケットファイルを確認し、クリーンアップします。

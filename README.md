@@ -51,11 +51,11 @@ Open `http://localhost:9292` in your browser.
   ```bash
   lazuli dev --reload
   ```
-- サーバー起動（Ruby + Deno同時起動・watcher無し。運用/検証向け）  
+- サーバー起動（Rackのみ。Deno renderer は別プロセスで起動）  
   ```bash
   lazuli server
   ```
-- `bundle exec rackup` は Rack のみ起動します（Deno spawn はしない）。基本は `lazuli dev/server` を使ってください。
+- `bundle exec rackup` / `lazuli server` は Rack のみ起動します（Deno spawn はしない）。開発時は `lazuli dev --reload` が推奨です。
 - リソース雛形生成  
   ```bash
   lazuli generate resource users
