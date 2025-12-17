@@ -1,38 +1,34 @@
 require "test_helper"
-require "lazuli"
+require "rack"
+require "lazuli/app"
 require "lazuli/resource"
 require "lazuli/renderer"
 require "lazuli/turbo_stream"
 
+class MyResource < Lazuli::Resource
+  def create
+    turbo_stream_or(redirect_to("/")) do |t|
+      t.prepend "list", fragment: "components/Row", props: { id: 1 }
+      t.before "list", fragment: "components/Row", props: { id: 2 }
+      t.after "list", fragment: "components/Row", props: { id: 3 }
+      t.update "flash", fragment: "components/Flash", props: { message: "hi" }
+      t.replace "flash", fragment: "components/Flash", props: { message: "bye" }
+      t.remove "row_1"
+    end
+  end
+end
+
+class TargetsResource < Lazuli::Resource
+  def create
+    turbo_stream(error_targets: "body") do |t|
+      t.remove targets: ".row"
+    end
+  end
+end
+
 class TurboStreamResourceTest < Minitest::Test
-  class RequestStub
-    def initialize(accept)
-      @accept = accept
-    end
-
-    def get_header(key)
-      return @accept if key == "HTTP_ACCEPT"
-      nil
-    end
-  end
-
-  class EmptyRequest
-    def get_header(_key)
-      nil
-    end
-  end
-
-  class MyResource < Lazuli::Resource
-    def create
-      turbo_stream_or(redirect_to("/")) do |t|
-        t.prepend "list", fragment: "components/Row", props: { id: 1 }
-        t.before "list", fragment: "components/Row", props: { id: 2 }
-        t.after "list", fragment: "components/Row", props: { id: 3 }
-        t.update "flash", fragment: "components/Flash", props: { message: "hi" }
-        t.replace "flash", fragment: "components/Flash", props: { message: "bye" }
-        t.remove "row_1"
-      end
-    end
+  def setup
+    @app = Lazuli::App.new(root: Dir.pwd)
   end
 
   def test_turbo_stream_records_operations_and_returns_stream_content_type
@@ -43,8 +39,10 @@ class TurboStreamResourceTest < Minitest::Test
       "<turbo-stream></turbo-stream>"
     end
 
-    req = RequestStub.new("text/vnd.turbo-stream.html, text/html")
-    status, headers, body = MyResource.new({}, request: req).create
+    status, headers, body = @app.call(
+      Rack::MockRequest.env_for("/my", method: "POST", "HTTP_ACCEPT" => "text/vnd.turbo-stream.html, text/html")
+    )
+
     assert_equal 200, status
     assert_equal "text/vnd.turbo-stream.html; charset=utf-8", headers["content-type"]
     assert_equal "accept", headers["vary"]
@@ -66,7 +64,10 @@ class TurboStreamResourceTest < Minitest::Test
     original = Lazuli::Renderer.method(:render_turbo_stream)
     Lazuli::Renderer.define_singleton_method(:render_turbo_stream) { |_ops| "<turbo-stream></turbo-stream>" }
 
-    status, headers, _body = MyResource.new({ format: "turbo_stream" }, request: EmptyRequest.new).create
+    status, headers, _body = @app.call(
+      Rack::MockRequest.env_for("/my?format=turbo_stream", method: "POST")
+    )
+
     assert_equal 200, status
     assert_equal "text/vnd.turbo-stream.html; charset=utf-8", headers["content-type"]
   ensure
@@ -74,8 +75,10 @@ class TurboStreamResourceTest < Minitest::Test
   end
 
   def test_accept_q_0_disables_turbo_stream
-    req = RequestStub.new("text/vnd.turbo-stream.html;q=0, text/html")
-    status, headers, _body = MyResource.new({}, request: req).create
+    status, headers, _body = @app.call(
+      Rack::MockRequest.env_for("/my", method: "POST", "HTTP_ACCEPT" => "text/vnd.turbo-stream.html;q=0, text/html")
+    )
+
     assert_equal 303, status
     assert_equal "/", headers["location"]
   end
@@ -84,8 +87,10 @@ class TurboStreamResourceTest < Minitest::Test
     original = Lazuli::Renderer.method(:render_turbo_stream)
     Lazuli::Renderer.define_singleton_method(:render_turbo_stream) { |_ops| "<turbo-stream></turbo-stream>" }
 
-    req = RequestStub.new("text/html;q=1.0, text/vnd.turbo-stream.html;q=0.9")
-    status, headers, _body = MyResource.new({}, request: req).create
+    status, headers, _body = @app.call(
+      Rack::MockRequest.env_for("/my", method: "POST", "HTTP_ACCEPT" => "text/html;q=1.0, text/vnd.turbo-stream.html;q=0.9")
+    )
+
     assert_equal 200, status
     assert_equal "text/vnd.turbo-stream.html; charset=utf-8", headers["content-type"]
   ensure
@@ -93,15 +98,19 @@ class TurboStreamResourceTest < Minitest::Test
   end
 
   def test_accept_star_does_not_enable_turbo_stream
-    req = RequestStub.new("*/*")
-    status, headers, _body = MyResource.new({}, request: req).create
+    status, headers, _body = @app.call(
+      Rack::MockRequest.env_for("/my", method: "POST", "HTTP_ACCEPT" => "*/*")
+    )
+
     assert_equal 303, status
     assert_equal "/", headers["location"]
   end
 
   def test_accept_html_and_star_does_not_enable_turbo_stream
-    req = RequestStub.new("text/html, */*")
-    status, headers, _body = MyResource.new({}, request: req).create
+    status, headers, _body = @app.call(
+      Rack::MockRequest.env_for("/my", method: "POST", "HTTP_ACCEPT" => "text/html, */*")
+    )
+
     assert_equal 303, status
     assert_equal "/", headers["location"]
   end
@@ -114,10 +123,10 @@ class TurboStreamResourceTest < Minitest::Test
       "<turbo-stream></turbo-stream>"
     end
 
-    req = RequestStub.new("text/vnd.turbo-stream.html")
-    status, _headers, _body = Lazuli::Resource.new({}, request: req).turbo_stream do |t|
-      t.remove targets: ".row"
-    end
+    status, _headers, _body = @app.call(
+      Rack::MockRequest.env_for("/targets", method: "POST", "HTTP_ACCEPT" => "text/vnd.turbo-stream.html")
+    )
+
     assert_equal 200, status
     assert_equal ".row", captured.first[:targets]
   ensure
@@ -125,7 +134,13 @@ class TurboStreamResourceTest < Minitest::Test
   end
 
   def test_invalid_fragment_is_rejected
-    req = RequestStub.new("text/vnd.turbo-stream.html")
+    req = Class.new do
+      def get_header(key)
+        return "text/vnd.turbo-stream.html" if key == "HTTP_ACCEPT"
+        nil
+      end
+    end.new
+
     assert_raises(ArgumentError) do
       Lazuli::Resource.new({}, request: req).turbo_stream do |t|
         t.append "list", fragment: "../secrets", props: {}
@@ -139,10 +154,9 @@ class TurboStreamResourceTest < Minitest::Test
       raise ::Lazuli::RendererError.new(status: 400, body: "Bad fragment", message: "Bad fragment")
     end
 
-    req = RequestStub.new("text/vnd.turbo-stream.html")
-    status, headers, body = Lazuli::Resource.new({}, request: req).turbo_stream do |t|
-      t.append "list", fragment: "components/Row", props: { id: 1 }
-    end
+    status, headers, body = @app.call(
+      Rack::MockRequest.env_for("/my", method: "POST", "HTTP_ACCEPT" => "text/vnd.turbo-stream.html")
+    )
 
     assert_equal 400, status
     assert_equal "text/vnd.turbo-stream.html; charset=utf-8", headers["content-type"]
@@ -158,10 +172,9 @@ class TurboStreamResourceTest < Minitest::Test
       raise ::Lazuli::RendererError.new(status: 500, body: "boom", message: "boom")
     end
 
-    req = RequestStub.new("text/vnd.turbo-stream.html")
-    status, _headers, body = Lazuli::Resource.new({}, request: req).turbo_stream(error_targets: "body") do |t|
-      t.append "list", fragment: "components/Row", props: { id: 1 }
-    end
+    status, _headers, body = @app.call(
+      Rack::MockRequest.env_for("/targets?format=turbo_stream", method: "POST")
+    )
 
     assert_equal 500, status
     assert_includes body.join, "targets=\"body\""
@@ -179,10 +192,9 @@ class TurboStreamResourceTest < Minitest::Test
     old = ENV["LAZULI_DEBUG"]
     ENV["LAZULI_DEBUG"] = "1"
 
-    req = RequestStub.new("text/vnd.turbo-stream.html")
-    status, _headers, body = Lazuli::Resource.new({}, request: req).turbo_stream(error_targets: "body") do |t|
-      t.append "list", fragment: "components/Row", props: { id: 1 }
-    end
+    status, _headers, body = @app.call(
+      Rack::MockRequest.env_for("/targets?format=turbo_stream", method: "POST")
+    )
 
     assert_equal 500, status
     assert_includes body.join, "boom"

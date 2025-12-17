@@ -1,11 +1,13 @@
 module Lazuli
   class TurboStream
-    attr_reader :operations
+    attr_reader :operations, :error_target, :error_targets
 
     FRAGMENT_PATTERN = %r{\A[a-zA-Z0-9_\-/]+\z}.freeze
 
-    def initialize
+    def initialize(error_target: nil, error_targets: nil)
       @operations = []
+      @error_target = error_target
+      @error_targets = error_targets
     end
 
     def append(target = nil, fragment:, props: {}, targets: nil)

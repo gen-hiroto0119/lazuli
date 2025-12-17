@@ -74,9 +74,9 @@
 ## 優先度: 中 (Enhancements)
 
 - [ ] **Turbo Streams: Ruby API の簡素化（Resource側のコード量を減らす）**
-    - [ ] `Lazuli::Resource#turbo_stream` の責務を整理
-        - [ ] 現状の `turbo_stream?` / content negotiation / escape_html / エラーハンドリングが分散しているので、共通モジュール or Response層に集約
-        - [ ] `Resource` は「操作(operations)を返すだけ」に寄せ、Rackレスポンス生成（status/headers/body）はApp側で一括処理できる形にする
+    - [x] `Lazuli::Resource#turbo_stream` の責務を整理
+        - [x] `Resource#turbo_stream` は operations (`Lazuli::TurboStream`) を返すだけに寄せる
+        - [x] Rackレスポンス生成（status/headers/body）+ escape_html + エラーハンドリングは `Lazuli::App` 側に集約
     - [x] **暗黙レスポンス化**（ユーザーが `[status, headers, body]` を意識しない）
         - [x] actionが `Lazuli::TurboStream` を返したら自動で `Content-Type: text/vnd.turbo-stream.html` を付与して返す
         - [x] `?format=turbo_stream` でも turbo-stream 扱いにできる
@@ -84,8 +84,8 @@
     - [ ] **DSLを短くする**
         - [ ] `turbo_stream { |s| ... }` を `stream { ... }` など短いエイリアスで提供（hooks最小のまま）
         - [ ] `fragment:` 必須は維持しつつ、`target:` の頻出ケースを省略しやすいAPIにする（例: `append("items", fragment: "items/item", props: {...})`）
-    - [ ] エラー表示の重複排除
-        - [ ] `Resource#turbo_stream` と `App` の turbo-stream エラー表示が二重なので、どちらか一箇所に統一（debug/非debug、flash targetなど）
+    - [x] エラー表示の重複排除
+        - [x] turbo-stream エラー表示は `App` に統一（debug/非debug、target/targets は `TurboStream#error_target(s)` を優先）
     - [ ] 受け入れ基準（最小の書き味）
         - [ ] ユーザーコード例: `def create; stream { |s| s.prepend "items", fragment: "items/item", props: {...} }; end` だけで動く
         - [ ] `Accept: text/vnd.turbo-stream.html` のとき自動でstream、そうでないときは通常HTML/redirectのまま

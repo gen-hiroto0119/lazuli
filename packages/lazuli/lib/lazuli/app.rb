@@ -99,10 +99,9 @@ module Lazuli
         end
 
         if accepts_turbo_stream?(req)
-          target = ENV["LAZULI_TURBO_ERROR_TARGET"].to_s
-          target = "flash" if target.empty?
           msg = escape_html(msg)
-          body = %(<turbo-stream action="update" target="#{escape_html(target)}"><template><pre>#{msg}</pre></template></turbo-stream>)
+          selector_attr = turbo_error_selector_attr(result)
+          body = %(<turbo-stream action="update" #{selector_attr}><template><pre>#{msg}</pre></template></turbo-stream>)
           return [status, { "content-type" => "text/vnd.turbo-stream.html; charset=utf-8", "vary" => "accept" }, [body]]
         end
 
@@ -115,10 +114,9 @@ module Lazuli
         debug = ENV["LAZULI_DEBUG"] == "1"
 
         if accepts_turbo_stream?(req)
-          target = ENV["LAZULI_TURBO_ERROR_TARGET"].to_s
-          target = "flash" if target.empty?
           msg = escape_html(debug ? "#{e.class}: #{e.message}" : "Internal Server Error")
-          body = %(<turbo-stream action="update" target="#{escape_html(target)}"><template><pre>#{msg}</pre></template></turbo-stream>)
+          selector_attr = turbo_error_selector_attr(result)
+          body = %(<turbo-stream action="update" #{selector_attr}><template><pre>#{msg}</pre></template></turbo-stream>)
           return [500, { "content-type" => "text/vnd.turbo-stream.html; charset=utf-8", "vary" => "accept" }, [body]]
         end
 
@@ -188,6 +186,27 @@ module Lazuli
 
         q > 0
       end
+    end
+
+    def turbo_error_selector_attr(result)
+      if result.is_a?(Lazuli::TurboStream)
+        targets = result.error_targets.to_s
+        if !targets.empty?
+          return %(targets="#{escape_html(targets)}")
+        end
+
+        target = result.error_target.to_s
+        target = default_turbo_error_target if target.empty?
+        return %(target="#{escape_html(target)}")
+      end
+
+      %(target="#{escape_html(default_turbo_error_target)}")
+    end
+
+    def default_turbo_error_target
+      target = ENV["LAZULI_TURBO_ERROR_TARGET"].to_s
+      target = "flash" if target.empty?
+      target
     end
 
     def dev_error_page(error, status:)

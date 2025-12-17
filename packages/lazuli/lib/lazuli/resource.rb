@@ -57,34 +57,9 @@ module Lazuli
     end
 
     def turbo_stream(error_target: "flash", error_targets: nil)
-      stream = Lazuli::TurboStream.new
+      stream = Lazuli::TurboStream.new(error_target: error_target, error_targets: error_targets)
       yield stream
-
-      begin
-        body = Lazuli::Renderer.render_turbo_stream(normalize_value(stream.operations))
-        return [200, { "content-type" => "text/vnd.turbo-stream.html; charset=utf-8", "vary" => "accept" }, [body]]
-      rescue Lazuli::RendererError => e
-        status = e.status.to_i
-        msg = if status >= 500 && ENV["LAZULI_DEBUG"] != "1"
-          "Internal Server Error"
-        else
-          (e.body.to_s.empty? ? e.message : e.body.to_s)
-        end
-        msg = escape_html(msg)
-      rescue StandardError => e
-        status = 500
-        msg = ENV["LAZULI_DEBUG"] == "1" ? e.message : "Internal Server Error"
-        msg = escape_html(msg)
-      end
-
-      selector_attr = if error_targets
-        %(targets="#{escape_html(error_targets)}")
-      else
-        %(target="#{escape_html(error_target)}")
-      end
-
-      body = %(<turbo-stream action="update" #{selector_attr}><template><pre>#{msg}</pre></template></turbo-stream>)
-      [status, { "content-type" => "text/vnd.turbo-stream.html; charset=utf-8", "vary" => "accept" }, [body]]
+      stream
     end
 
     # Helper to avoid explicit branching in actions.
@@ -117,10 +92,6 @@ module Lazuli
 
     alias stream turbo_stream
     alias stream_or turbo_stream_or
-
-    def escape_html(s)
-      s.to_s.gsub("&", "&amp;").gsub("<", "&lt;").gsub(">", "&gt;").gsub('"', "&quot;")
-    end
 
     def redirect_to(location, status: nil)
       status ||= begin
