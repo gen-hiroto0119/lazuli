@@ -98,6 +98,14 @@ module Lazuli
       end
     end
 
+    def turbo_stream_ops
+      stream = Lazuli::TurboStream.new
+      yield stream
+      stream
+    end
+
+    alias stream_ops turbo_stream_ops
+
     alias stream turbo_stream
     alias stream_or turbo_stream_or
 

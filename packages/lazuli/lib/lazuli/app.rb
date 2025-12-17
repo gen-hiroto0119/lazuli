@@ -73,6 +73,15 @@ module Lazuli
 
         result = resource.public_send(action)
 
+        if result.is_a?(Lazuli::TurboStream)
+          unless accepts_turbo_stream?(req)
+            return [406, { "content-type" => "text/plain" }, ["Not Acceptable"]]
+          end
+
+          body = Lazuli::Renderer.render_turbo_stream(result.operations)
+          return [200, { "content-type" => "text/vnd.turbo-stream.html; charset=utf-8", "vary" => "accept" }, [body]]
+        end
+
         if result.is_a?(Array) && result.length == 3
           return result
         end
@@ -160,6 +169,9 @@ module Lazuli
     end
 
     def accepts_turbo_stream?(req)
+      fmt = req.params["format"].to_s
+      return true if fmt == "turbo_stream" || fmt == "turbo-stream"
+
       accept = req.get_header("HTTP_ACCEPT").to_s
       return false if accept.strip.empty?
 
