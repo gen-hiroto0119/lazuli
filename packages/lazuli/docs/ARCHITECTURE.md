@@ -118,7 +118,7 @@ Lazuliは **Island Architecture** を採用しており、ページ全体では�
 *   **レンダラ側（自動）:** HTML に `data-lazuli-island` が含まれる場合のみ、Renderer（Deno）が hydration runtime を `<head>` に自動注入します（ユーザーが script を書く必要はありません）。
 *   **クライアントサイド:** ブラウザは自動注入された runtime が `hono/jsx/dom` を使って、指定されたコンポーネントをマウントします。
 
-補足: Island として使うコンポーネントは `"use hydration";` を先頭に書く運用を推奨します（現状は no-op ですが、意図が明確になります）。
+補足: **pageモジュール**の先頭に `"use hydration";` がある場合、Renderer（Deno）がページ全体を自動で Island 化（`data-lazuli-island` を付与）し、hydration runtime を注入します。
 
 ## 5. ディレクトリ構成マッピング
 

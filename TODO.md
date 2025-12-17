@@ -106,8 +106,8 @@
     - [x] `packages/lazuli` のテストが `minitest` に依存しているので、開発依存に追加して `bundle exec ruby -Itest test/**/*_test.rb` を通す
     - [x] CI で Ruby + Deno のテスト実行
 
-- [ ] **Islands Architecture の自動化**
-    - [ ] `"use hydration"` ディレクティブの自動検出（将来: auto Island化の足がかり）
+- [x] **Islands Architecture の自動化**
+    - [x] `"use hydration"` ディレクティブの自動検出（page先頭のdirectiveでauto Island化）
     - [x] Islandマーカー（`data-lazuli-island`）検出 → hydration runtime を自動注入（1ページ1回）
 - [x] **エラーハンドリングの強化**
     - [x] `Lazuli::RendererError` に status を保持（レンダリング失敗時にHTTP statusで扱える）

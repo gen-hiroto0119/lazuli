@@ -79,6 +79,11 @@ function escapeAttr(value: string): string {
     .replaceAll(">", "&gt;");
 }
 
+function hasUseHydrationDirective(src: string): boolean {
+  const s = src.replace(/^\uFEFF/, "");
+  return /^\s*(?:\/\*[\s\S]*?\*\/\s*)*(?:(?:\/\/[^\n]*\n)\s*)*(["'])use hydration\1\s*;?/.test(s);
+}
+
 async function renderFragment(appRoot: string, fragment: string, props: Record<string, unknown>) {
   const fragmentPath = join(appRoot, "app", `${fragment}.tsx`);
 
@@ -215,10 +220,36 @@ app.post("/render", async (c) => {
       throw new Error(`Layout component not found at ${layoutPath}`);
     }
 
+    const autoHydrate = hasUseHydrationDirective(await Deno.readTextFile(pagePath));
+
+    const pageNode = autoHydrate
+      ? (() => {
+        const id = "page-island-" + Math.random().toString(36).slice(2);
+        const propsScriptId = `${id}-props`;
+        const jsonProps = JSON.stringify(props ?? {}).replace(/</g, "\\u003c");
+        return (
+          <>
+            <div
+              id={id}
+              data-lazuli-island={`/assets/pages/${page}.tsx`}
+              data-lazuli-props={propsScriptId}
+            >
+              <PageComponent {...props} />
+            </div>
+            <script
+              id={propsScriptId}
+              type="application/json"
+              dangerouslySetInnerHTML={{ __html: jsonProps }}
+            />
+          </>
+        );
+      })()
+      : <PageComponent {...props} />;
+
     // Render to string using Hono html helper
     const body = html`${
       <LayoutComponent>
-        <PageComponent {...props} />
+        {pageNode}
       </LayoutComponent>
     }`;
 

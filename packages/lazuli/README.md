@@ -85,7 +85,9 @@ end
 
 Use `<Island />` to hydrate just a small interactive region; Lazuli will auto-inject the hydration runtime when it sees `data-lazuli-island` in the HTML.
 
-Interactive components can start with `"use hydration";` as a simple convention (it’s a no-op directive).
+If a **page module** starts with `"use hydration";`, Lazuli will auto-wrap the page as an Island (hydrate the whole page).
+
+For non-page components, `"use hydration";` is just a convention (no behavior yet).
 
 ```tsx
 // app/components/Counter.tsx
