@@ -18,6 +18,31 @@ deno run -A --unstable-net \
   --socket "$(pwd)/tmp/sockets/lazuli-renderer.sock"
 ```
 
+## DB (SQLite)
+
+```sh
+# runs db/migrate/*.up.sql and creates db/development.sqlite3
+lazuli db create
+
+# rollback last migration
+lazuli db rollback
+```
+
+Override the DB file path with `LAZULI_DB_PATH` (or `LAZULI_DB`).
+
+Repository helpers:
+
+```rb
+class UserRepository < Lazuli::Repository
+  def self.all
+    db = open # uses default path (or LAZULI_DB_PATH)
+    db.execute("SELECT * FROM users")
+  ensure
+    db&.close
+  end
+end
+```
+
 ## Turbo
 
 Lazuli loads Turbo (`@hotwired/turbo`) so **Turbo Drive** works out of the box.
