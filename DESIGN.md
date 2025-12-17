@@ -158,10 +158,14 @@ class UsersResource < Lazuli::Resource
   end
 
   def create
-    UserRepository.create(params)
-    
-    # Turbo Streamによる部分更新の指示も可能
-    turbo_stream.prepend "users_list", partial: "components/user_row", locals: { user: user }
+    user = UserRepository.create(params)
+
+    # Turbo Stream: Rubyは操作（operation）を組み立て、HTMLはDenoがJSX fragmentで生成する
+    return turbo_stream do |t|
+      t.prepend "users_list", fragment: "components/UserRow", props: { user: user }
+    end if turbo_stream?
+
+    redirect_to "/users"
   end
 end
 ```

@@ -3,6 +3,18 @@ require "json"
 require "net/http"
 
 module Lazuli
+  class Error < StandardError; end unless const_defined?(:Error)
+
+  class RendererError < Lazuli::Error
+    attr_reader :status, :body
+
+    def initialize(status:, body:, message:)
+      @status = status
+      @body = body
+      super(message)
+    end
+  end
+
   class Renderer
     DEFAULT_SOCKET_PATH = File.expand_path(
       ENV["LAZULI_SOCKET"] ||
@@ -12,7 +24,11 @@ module Lazuli
     def self.render(page, props)
       response = new.post("/render", { page: page, props: props })
       if response[:status] && response[:status] >= 400
-        raise Lazuli::Error, "Render failed (#{response[:status]}): #{response[:body]}"
+        raise Lazuli::RendererError.new(
+          status: response[:status],
+          body: response[:body],
+          message: "Render failed (#{response[:status]}): #{response[:body]}"
+        )
       end
       response[:body]
     end
@@ -20,7 +36,11 @@ module Lazuli
     def self.render_turbo_stream(operations)
       response = new.post("/render_turbo_stream", { streams: operations })
       if response[:status] && response[:status] >= 400
-        raise Lazuli::Error, "Turbo Stream render failed (#{response[:status]}): #{response[:body]}"
+        raise Lazuli::RendererError.new(
+          status: response[:status],
+          body: response[:body],
+          message: "Turbo Stream render failed (#{response[:status]}): #{response[:body]}"
+        )
       end
       response[:body]
     end

@@ -41,20 +41,22 @@ module Lazuli
       begin
         body = Lazuli::Renderer.render_turbo_stream(normalize_value(stream.operations))
         return [200, { "content-type" => "text/vnd.turbo-stream.html; charset=utf-8", "vary" => "accept" }, [body]]
-      rescue StandardError => e
-        status = (e.message.to_s[/\((\d{3})\)/, 1] || "500").to_i
-        status = 500 if status < 400 || status > 599
-
+      rescue Lazuli::RendererError => e
+        status = e.status
         msg = escape_html(e.message)
-        selector_attr = if error_targets
-          %(targets="#{escape_html(error_targets)}")
-        else
-          %(target="#{escape_html(error_target)}")
-        end
-
-        body = %(<turbo-stream action="update" #{selector_attr}><template><pre>#{msg}</pre></template></turbo-stream>)
-        return [status, { "content-type" => "text/vnd.turbo-stream.html; charset=utf-8", "vary" => "accept" }, [body]]
+      rescue StandardError => e
+        status = 500
+        msg = escape_html(e.message)
       end
+
+      selector_attr = if error_targets
+        %(targets="#{escape_html(error_targets)}")
+      else
+        %(target="#{escape_html(error_target)}")
+      end
+
+      body = %(<turbo-stream action="update" #{selector_attr}><template><pre>#{msg}</pre></template></turbo-stream>)
+      [status, { "content-type" => "text/vnd.turbo-stream.html; charset=utf-8", "vary" => "accept" }, [body]]
     end
 
     def escape_html(s)

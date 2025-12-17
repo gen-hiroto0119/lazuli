@@ -140,7 +140,7 @@ class TurboStreamResourceTest < Minitest::Test
   def test_stream_renderer_error_preserves_status
     original = Lazuli::Renderer.method(:render_turbo_stream)
     Lazuli::Renderer.define_singleton_method(:render_turbo_stream) do |_ops|
-      raise ::Lazuli::Error, "Turbo Stream render failed (400): Bad fragment"
+      raise ::Lazuli::RendererError.new(status: 400, body: "Bad fragment", message: "Bad fragment")
     end
 
     req = RequestStub.new("text/vnd.turbo-stream.html")
@@ -158,7 +158,7 @@ class TurboStreamResourceTest < Minitest::Test
   def test_stream_error_targets_can_be_configured
     original = Lazuli::Renderer.method(:render_turbo_stream)
     Lazuli::Renderer.define_singleton_method(:render_turbo_stream) do |_ops|
-      raise ::Lazuli::Error, "Turbo Stream render failed (500): boom"
+      raise ::Lazuli::RendererError.new(status: 500, body: "boom", message: "boom")
     end
 
     req = RequestStub.new("text/vnd.turbo-stream.html")
