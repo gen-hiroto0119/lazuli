@@ -64,6 +64,9 @@ curl -fsS "http://127.0.0.1:$PORT/users" | grep -q "@hotwired/turbo"
 curl -fsS "http://127.0.0.1:$PORT/users" | grep -q "data-lazuli-island"
 curl -fsS "http://127.0.0.1:$PORT/users" | grep -q "Lazuli Islands Hydration"
 
+# 2b) /todos page exists (hydration demo)
+curl -fsS "http://127.0.0.1:$PORT/todos" | grep -q "Todos (Turbo verification)"
+
 # 3) Turbo Streams: POST returns turbo-stream content
 curl -fsS -H "Accept: text/vnd.turbo-stream.html" \
   -X POST "http://127.0.0.1:$PORT/users" \
