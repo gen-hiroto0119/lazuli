@@ -2,6 +2,12 @@
 
 Ruby for routing/thinking + Deno(Hono JSX) for rendering.
 
+## Process model
+
+- `lazuli dev`: starts **Rack + Deno** via `Lazuli::ServerRunner` (use `--reload` for development)
+- `lazuli server`: starts **Rack + Deno** (no watcher; suitable for running under a process manager)
+- `bundle exec rackup`: starts **Rack only** (the Deno renderer must be started separately)
+
 ## Turbo
 
 Lazuli loads Turbo (`@hotwired/turbo`) so **Turbo Drive** works out of the box.

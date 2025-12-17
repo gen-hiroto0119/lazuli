@@ -52,10 +52,10 @@
     - [x] 終了時にDeno/Rackを停止しソケットをクリーンアップ（基本）
     - [x] プロセスグループ/子プロセス含む完全停止（pgid kill + at_exit cleanup）
     - [x] ログ簡素化・リトライ制御（LAZULI_QUIET/LAZULI_DEBUG、socket-ready待ち + retry）
-- [ ] **プロセスモデルの整理（App/ServerRunner）**
+- [x] **プロセスモデルの整理（App/ServerRunner）**
     - [x] 方針: Deno管理は `Lazuli::ServerRunner`（CLI）に集約し、`Lazuli::App` はRackアプリとして純粋に保つ
-    - [ ] (任意) opt-inで `Lazuli::App#start_deno_process` を実装するか（rackup単体起動でもDenoをspawnできるようにする）
-    - [ ] spawnする場合: socket ready のヘルスチェック/リトライ、終了時クリーンアップ、ログ制御
+    - [x] 決定: `bundle exec rackup` は **Rackのみ**（Deno spawn はしない）。開発/本番は `lazuli dev` / `lazuli server`（Rack+Deno）か、Denoを別プロセスで運用する
+    - [x] `lazuli server` の位置づけ: watcher無しの統合起動（Rack+Deno）。`lazuli dev` は `--reload` で開発用ホットリロード
 
 - [x] **Turbo Drive の統合**
     - [x] Turbo Drive をJSで自動注入（esm.sh）

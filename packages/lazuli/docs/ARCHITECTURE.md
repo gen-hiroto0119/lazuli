@@ -4,27 +4,29 @@ Lazuliは、Rubyの堅牢なバックエンドエコシステムと、Deno/Hono�
 
 ## 1. プロセスモデル
 
-Lazuliは「One Server」の哲学を維持するために、**Master-Worker** プロセスモデルで動作します。
+Lazuliは Ruby (Rack) と Deno (Renderer/Assets) の **2プロセス** で動作します。
 
-*   **Master Process (Ruby):**
+*   **Rack Process (Ruby):**
     *   アプリケーションのエントリーポイント (`config.ru`)。
-    *   外部からのHTTPリクエストを処理します。
-    *   Denoプロセスのライフサイクルを管理します。
+    *   `Lazuli::App` として外部からのHTTPリクエストを処理します。
     *   ビジネスロジック、データベースアクセス、ルーティングを担当します。
-*   **Worker Process (Deno):**
-    *   Rubyプロセスによって起動・監視されます。
+*   **Renderer Process (Deno):**
     *   Unix Domain Socket (例: `tmp/sockets/lazuli-renderer.sock`) で待機します。
-    *   **Hono JSX** を使用したSSR (Server-Side Rendering) と、アセットのオンデマンド変換を担当します。
+    *   **Hono JSX** によるSSR、アセット提供、Turbo Streams の `<template>` 断片（JSX fragment）生成を担当します。
     *   基本的にステートレスです。
 
-### 起動シーケンス
+### ライフサイクル（起動方法）
 
-1.  **Ruby Boot:** `bundle exec rackup` でRubyサーバーが起動。
-2.  **Lazuli Init:** `Lazuli::App` が初期化されます。
-3.  **Socket Check:** Rubyは既存のソケットファイルを確認し、クリーンアップします。
-4.  **Deno Spawn:** Rubyは `deno run -A --unstable-net ...` コマンドでDenoプロセスを起動します。
-5.  **Health Check:** Rubyはソケットの準備ができるまで待機します（接続確認）。
-6.  **Ready:** サーバーがHTTPトラフィックの受け付けを開始します。
+*   **開発/統合起動:** `lazuli dev` / `lazuli server` が `Lazuli::ServerRunner` として Rack + Deno を同時に起動し、終了シグナルで両方を確実に停止します。
+*   **Rack単体起動:** `bundle exec rackup` は Rack のみ起動します（Deno spawn はしません）。Renderer は別プロセスで起動するか、CLIで統合起動してください。
+
+### 起動シーケンス（lazuli dev/server）
+
+1.  **Runner Boot:** `Lazuli::ServerRunner` が起動。
+2.  **Socket Check:** 既存のソケットファイルを確認し、クリーンアップします。
+3.  **Deno Spawn:** `deno run -A --unstable-net ...` でRendererを起動し、socket ready を待ちます。
+4.  **Rack Spawn:** `bundle exec rackup` でRackサーバーを起動します。
+5.  **Ready:** HTTPトラフィックの受け付けを開始します。
 
 ## 2. IPCプロトコル (Ruby <-> Deno)
 
