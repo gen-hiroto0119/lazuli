@@ -160,17 +160,13 @@ class UsersResource < Lazuli::Resource
   def create
     user = UserRepository.create(params)
 
-    # Turbo Stream: Rubyは操作（operation）を組み立て、HTMLはDenoがJSX fragmentで生成する
-    # - Rubyは「どこに/何をするか」だけを宣言（append/replace/remove...）
+    # Turbo Stream: Rubyは操作（operation）だけを組み立てる。
     # - <template> の中身HTMLは Deno が JSX fragment を SSR して生成
-    # - 返すContent-Typeは `text/vnd.turbo-stream.html`（Turboがストリームとして解釈する）
-    # - Turbo Streamレスポンスは `<turbo-stream>` 群のみ（<html>/<body>で包まない）
-    # - Turboはリクエストに `Accept: text/vnd.turbo-stream.html` を付けるので、それで分岐（+ `?format=turbo_stream` も可能）
-    return turbo_stream do |t|
+    # - Turboは `Accept: text/vnd.turbo-stream.html` を付ける（+ `?format=turbo_stream` も可）
+    # - actionが `Lazuli::TurboStream` を返したら、Appが自動で turbo-stream レスポンスに変換する
+    stream_ops_or(redirect_to("/users")) do |t|
       t.prepend "users_list", fragment: "components/UserRow", props: { user: user }
-    end if turbo_stream?
-
-    redirect_to "/users" # GET以外は基本 303 でDrive互換
+    end
   end
 end
 ```

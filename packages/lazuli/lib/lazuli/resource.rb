@@ -104,7 +104,16 @@ module Lazuli
       stream
     end
 
+    def turbo_stream_ops_or(fallback_response, &block)
+      if turbo_stream?
+        turbo_stream_ops(&block)
+      else
+        fallback_response
+      end
+    end
+
     alias stream_ops turbo_stream_ops
+    alias stream_ops_or turbo_stream_ops_or
 
     alias stream turbo_stream
     alias stream_or turbo_stream_or

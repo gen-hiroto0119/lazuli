@@ -77,9 +77,10 @@
     - [ ] `Lazuli::Resource#turbo_stream` の責務を整理
         - [ ] 現状の `turbo_stream?` / content negotiation / escape_html / エラーハンドリングが分散しているので、共通モジュール or Response層に集約
         - [ ] `Resource` は「操作(operations)を返すだけ」に寄せ、Rackレスポンス生成（status/headers/body）はApp側で一括処理できる形にする
-    - [ ] **暗黙レスポンス化**（ユーザーが `[status, headers, body]` を意識しない）
-        - [ ] actionが `Lazuli::TurboStream`（or `Lazuli::Response::TurboStream`）を返したら自動で `Content-Type: text/vnd.turbo-stream.html` を付与して返す
-        - [ ] actionが `String` を返したらHTMLとして返す、のように戻り値で分岐する既存方針と整合
+    - [x] **暗黙レスポンス化**（ユーザーが `[status, headers, body]` を意識しない）
+        - [x] actionが `Lazuli::TurboStream` を返したら自動で `Content-Type: text/vnd.turbo-stream.html` を付与して返す
+        - [x] `?format=turbo_stream` でも turbo-stream 扱いにできる
+        - [ ] 非turbo時のfallback（redirect等）を短く書ける `stream_ops_or(...) { ... }` を推奨例に反映
     - [ ] **DSLを短くする**
         - [ ] `turbo_stream { |s| ... }` を `stream { ... }` など短いエイリアスで提供（hooks最小のまま）
         - [ ] `fragment:` 必須は維持しつつ、`target:` の頻出ケースを省略しやすいAPIにする（例: `append("items", fragment: "items/item", props: {...})`）
