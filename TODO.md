@@ -80,9 +80,9 @@
     - [x] **暗黙レスポンス化**（ユーザーが `[status, headers, body]` を意識しない）
         - [x] actionが `Lazuli::TurboStream` を返したら自動で `Content-Type: text/vnd.turbo-stream.html` を付与して返す
         - [x] `?format=turbo_stream` でも turbo-stream 扱いにできる
-        - [ ] 非turbo時のfallback（redirect等）を短く書ける `stream_ops_or(...) { ... }` を推奨例に反映
+        - [x] 非turbo時のfallback（redirect等）を短く書ける `stream_or(...) { ... }` / `stream_ops_or(...) { ... }` を推奨例に反映
     - [ ] **DSLを短くする**
-        - [ ] `turbo_stream { |s| ... }` を `stream { ... }` など短いエイリアスで提供（hooks最小のまま）
+        - [x] `turbo_stream { |s| ... }` を `stream { ... }` など短いエイリアスで提供（hooks最小のまま）
         - [ ] `fragment:` 必須は維持しつつ、`target:` の頻出ケースを省略しやすいAPIにする（例: `append("items", fragment: "items/item", props: {...})`）
     - [x] エラー表示の重複排除
         - [x] turbo-stream エラー表示は `App` に統一（debug/非debug、target/targets は `TurboStream#error_target(s)` を優先）
@@ -114,8 +114,8 @@
 - [ ] **CLI UX拡張**
     - [ ] `generate resource`でslug/route指定とテンプレートコメント挿入
 - [ ] **ドキュメント整備**
-    - [ ] `packages/lazuli/README.md` を実用レベルに拡充（server/types/islands/turbo など）
-    - [ ] `packages/lazuli/docs/ARCHITECTURE.md` のディレクトリマッピング（views→pages/layouts/components等）を現状に合わせる
+    - [x] `packages/lazuli/README.md` を実用レベルに拡充（server/types/islands/turbo など）
+    - [x] `packages/lazuli/docs/ARCHITECTURE.md` のディレクトリマッピング（views→pages/layouts/components等）を現状に合わせる
 - [ ] **サンプル拡充**
     - [ ] exampleにCRUDフローと複数Island例を追加
     - [ ] READMEに生成物/サンプルの利用手順を追記

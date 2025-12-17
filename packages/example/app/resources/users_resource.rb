@@ -13,58 +13,46 @@ class UsersResource < Lazuli::Resource
   def create
     user = UserRepository.create(name: params[:name].to_s)
 
-    if turbo_stream?
-      return turbo_stream do |t|
-        # Show prepend + before/after in one place.
-        t.prepend "users_list", fragment: "components/UserRow", props: { user: user }
+    stream_or(redirect_to("/users")) do |t|
+      # Show prepend + before/after in one place.
+      t.prepend "users_list", "components/UserRow", user: user
 
-        t.remove "notice"
-        t.before "users_list", fragment: "components/Notice", props: { message: "Added #{user.name}" }
+      t.remove "notice"
+      t.before "users_list", "components/Notice", message: "Added #{user.name}"
 
-        t.remove "users_footer"
-        t.after "users_list", fragment: "components/UsersFooter", props: { count: UserRepository.all.length }
+      t.remove "users_footer"
+      t.after "users_list", "components/UsersFooter", count: UserRepository.all.length
 
-        t.update "flash", fragment: "components/FlashMessage", props: { message: "Turbo Streams: prepend + before/after" }
-      end
+      t.update "flash", "components/FlashMessage", message: "Turbo Streams: prepend + before/after"
     end
-
-    redirect_to "/users"
   end
 
   def destroy
     if params[:id]
       user = UserRepository.delete(params[:id])
 
-      if turbo_stream?
-        return turbo_stream do |t|
-          t.remove "user_#{params[:id]}"
+      return stream_or(redirect_to("/users")) do |t|
+        t.remove "user_#{params[:id]}"
 
-          t.remove "notice"
-          t.before "users_list", fragment: "components/Notice", props: { message: "Deleted #{user&.name || params[:id]}" }
+        t.remove "notice"
+        t.before "users_list", "components/Notice", message: "Deleted #{user&.name || params[:id]}"
 
-          t.remove "users_footer"
-          t.after "users_list", fragment: "components/UsersFooter", props: { count: UserRepository.all.length }
+        t.remove "users_footer"
+        t.after "users_list", "components/UsersFooter", count: UserRepository.all.length
 
-          t.replace "flash", fragment: "components/FlashBox", props: { message: "Deleted #{user&.name || params[:id]}" }
-        end
+        t.replace "flash", "components/FlashBox", message: "Deleted #{user&.name || params[:id]}"
       end
-
-      return redirect_to "/users"
     end
 
     # DELETE /users -> batch delete demo (targets)
     UserRepository.clear
 
-    if turbo_stream?
-      return turbo_stream do |t|
-        t.remove targets: "#users_list li"
-        t.remove "notice"
-        t.remove "users_footer"
-        t.after "users_list", fragment: "components/UsersFooter", props: { count: 0 }
-        t.update "flash", fragment: "components/FlashMessage", props: { message: "Deleted all users via targets" }
-      end
+    stream_or(redirect_to("/users")) do |t|
+      t.remove "#users_list li"
+      t.remove "notice"
+      t.remove "users_footer"
+      t.after "users_list", "components/UsersFooter", count: 0
+      t.update "flash", "components/FlashMessage", message: "Deleted all users via targets"
     end
-
-    redirect_to "/users"
   end
 end

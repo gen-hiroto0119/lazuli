@@ -55,6 +55,19 @@ class TurboStreamBuilderTest < Minitest::Test
     )
   end
 
+  def test_selector_shorthand_coerces_first_arg_to_targets
+    t = Lazuli::TurboStream.new
+
+    t.update "#flash", "components/Row", id: 1
+    t.remove "#users_list li"
+
+    assert_equal(
+      { action: :update, targets: "#flash", fragment: "components/Row", props: { id: 1 } },
+      t.operations[0]
+    )
+    assert_equal({ action: :remove, targets: "#users_list li" }, t.operations[1])
+  end
+
   def test_invalid_fragment_is_rejected
     t = Lazuli::TurboStream.new
     assert_raises(ArgumentError) { t.append "a", fragment: "../secrets", props: {} }

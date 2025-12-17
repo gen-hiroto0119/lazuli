@@ -25,12 +25,10 @@ class UsersResource < Lazuli::Resource
   def create
     user = UserRepository.create(name: params[:name])
 
-    return stream do |t|
+    stream_or(redirect_to("/users")) do |t|
       t.append "users_list", "components/UserRow", user: user
       t.update "flash", "components/FlashMessage", message: "Added"
-    end if turbo_stream?
-
-    redirect_to "/users" # defaults to 303 for non-GET
+    end
   end
 end
 ```
@@ -38,6 +36,15 @@ end
 Fragments live under your app root, e.g. `app/components/UserRow.tsx` and are referenced as `components/UserRow`.
 
 `targets:` is supported for selector-based updates/removals.
+
+Shorthand: if the first argument starts with a CSS selector prefix (`#`, `.`, `[`), Lazuli treats it as `targets:`.
+
+```rb
+stream do |t|
+  t.remove "#users_list li"         # => targets: "#users_list li"
+  t.update "#flash", "components/Flash", message: "hi"
+end
+```
 
 ## RPC (experimental)
 

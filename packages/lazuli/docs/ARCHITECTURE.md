@@ -22,6 +22,8 @@ Lazuliは Ruby (Rack) と Deno (Renderer/Assets) の **2プロセス** で動作
 
 Turbo Streams の `<template>` 断片は Ruby では生成せず、Ruby は「operation を積む」だけに徹し、Deno が JSX fragment をレンダリングします。Ruby 側は `stream { ... }`（=`turbo_stream`）で操作を組み立て、`t.append "list", "components/Row", id: 1` のように `props:` を省略できます。
 
+また、第一引数が `#` / `.` / `[` で始まる場合は `targets:` の省略記法として扱います（例: `t.remove "#users_list li"`）。
+
 ### 起動シーケンス（lazuli dev）
 
 1.  **Runner Boot:** `Lazuli::ServerRunner` が起動。
