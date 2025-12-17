@@ -6,8 +6,8 @@
   - [x] `target:`/`targets:` の省略記法を最終整理（id/selector判定 + Symbol/Array対応）
   - [x] 最短パターン（`stream { ... }` / `stream_or(...) { ... }`）を example / generator に固定
   - [x] 受け入れ基準（READMEの最小例）がそのままコピペで動くことを確認
-- [ ] **Islands: hydration 自動化（MVP）**
-  - [ ] "use hydration" 検出 → 必要スクリプト自動注入
+- [x] **Islands: hydration 自動化（MVP）**
+  - [x] Islandマーカー検出 → hydration runtime をHEADへ自動注入（1ページ1回）
 - [ ] **DB: 最小Migration + Repository base**
   - [ ] マイグレーション実行（create/rollback）
   - [ ] `Lazuli::Repository` ベース（接続/クエリ/型変換の最小セット）

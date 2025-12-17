@@ -259,14 +259,43 @@ app.post("/render", async (c) => {
     const currentToken = await loadReloadToken(appRoot);
     const reloadScript = reloadEnabled ? `<script type="module">(function(){const initial="${currentToken}";const es=new EventSource("/__lazuli/events");es.onmessage=(ev)=>{const token=String(ev.data||"");if(token&&token!==initial){location.reload();}};es.onerror=()=>{/* rely on EventSource auto-reconnect */};})();</script>` : "";
     const turboScript = `<script type="module">import "https://esm.sh/@hotwired/turbo@8";</script>`;
+    const islandsRuntimeScript = doc.includes("data-lazuli-island")
+      ? `<script type="module">/* Lazuli Islands Hydration */
+import { render } from "hono/jsx/dom";
+import { jsx } from "hono/jsx";
+
+async function hydrateOne(el){
+  try {
+    const path = el.getAttribute("data-lazuli-island") || "";
+    const propsId = el.getAttribute("data-lazuli-props") || "";
+    if (!path) return;
+
+    const propsEl = propsId ? document.getElementById(propsId) : null;
+    const raw = propsEl?.textContent || "{}";
+    const props = JSON.parse(raw);
+
+    const mod = await import(path);
+    const Component = mod.default;
+    if (!Component) return;
+    render(jsx(Component, props), el);
+  } catch (e) {
+    console.error("Lazuli hydrate failed", e);
+  }
+}
+
+for (const el of document.querySelectorAll("[data-lazuli-island]")) {
+  hydrateOne(el);
+}
+</script>`
+      : "";
     let injectedHtml = doc;
 
     if (doc.includes("</head>")) {
-      injectedHtml = doc.replace("</head>", `${importMapScript}${turboScript}${reloadScript}</head>`);
+      injectedHtml = doc.replace("</head>", `${importMapScript}${turboScript}${islandsRuntimeScript}${reloadScript}</head>`);
     } else if (doc.includes("<head>")) {
-      injectedHtml = doc.replace("<head>", `<head>${importMapScript}${turboScript}${reloadScript}`);
+      injectedHtml = doc.replace("<head>", `<head>${importMapScript}${turboScript}${islandsRuntimeScript}${reloadScript}`);
     } else {
-      injectedHtml = `${importMapScript}${turboScript}${reloadScript}${doc}`;
+      injectedHtml = `${importMapScript}${turboScript}${islandsRuntimeScript}${reloadScript}${doc}`;
     }
 
     return c.html(injectedHtml);

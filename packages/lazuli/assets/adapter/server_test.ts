@@ -91,6 +91,63 @@ export default function Home(){ return <div>Home</div>; }
   }
 });
 
+Deno.test("render injects islands hydration runtime when islands are present", async () => {
+  const appRoot = await Deno.makeTempDir();
+  try {
+    await Deno.mkdir(`${appRoot}/app/pages`, { recursive: true });
+    await Deno.mkdir(`${appRoot}/app/layouts`, { recursive: true });
+    await Deno.mkdir(`${appRoot}/app/components`, { recursive: true });
+
+    await Deno.writeTextFile(
+      `${appRoot}/app/layouts/Application.tsx`,
+      `/** @jsxImportSource npm:hono@^4/jsx */
+export default function Application(props: { children: unknown }) {
+  return <html><head><title>x</title></head><body>{props.children}</body></html>;
+}
+`,
+    );
+
+    await Deno.writeTextFile(
+      `${appRoot}/app/components/Widget.tsx`,
+      `/** @jsxImportSource npm:hono@^4/jsx */
+export default function Widget(props: { name: string }){ return <div>Widget {props.name}</div>; }
+`,
+    );
+
+    await Deno.writeTextFile(
+      `${appRoot}/app/pages/home.tsx`,
+      `/** @jsxImportSource npm:hono@^4/jsx */
+export default function Home(){
+  return (
+    <>
+      <div data-lazuli-island="/assets/components/Widget.tsx" data-lazuli-props="p1">SSR</div>
+      <script id="p1" type="application/json">{"name":"x"}</script>
+    </>
+  );
+}
+`,
+    );
+
+    const { server, baseUrl } = await startServer(appRoot);
+    try {
+      const res = await fetch(`${baseUrl}/render`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ page: "home", props: {} }),
+      });
+
+      assertEquals(res.status, 200);
+      const text = await res.text();
+      assertStringIncludes(text, "data-lazuli-island");
+      assertStringIncludes(text, "Lazuli Islands Hydration");
+    } finally {
+      await server.shutdown();
+    }
+  } finally {
+    await Deno.remove(appRoot, { recursive: true });
+  }
+});
+
 Deno.test("render returns 404 when page is missing", async () => {
   const appRoot = await Deno.makeTempDir();
   try {
