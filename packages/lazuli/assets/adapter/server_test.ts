@@ -25,7 +25,7 @@ Deno.test("render_turbo_stream rejects invalid fragment", async () => {
       }),
     });
     assertEquals(res.status, 400);
-    await res.text();
+    assertStringIncludes(await res.text(), "Turbo Stream render failed");
   } finally {
     await server.shutdown();
   }
@@ -83,6 +83,37 @@ export default function Home(){ return <div>Home</div>; }
       const text = await res.text();
       assertStringIncludes(text, "<!DOCTYPE html>");
       assertStringIncludes(text, "Home");
+    } finally {
+      await server.shutdown();
+    }
+  } finally {
+    await Deno.remove(appRoot, { recursive: true });
+  }
+});
+
+Deno.test("render returns 404 when page is missing", async () => {
+  const appRoot = await Deno.makeTempDir();
+  try {
+    await Deno.mkdir(`${appRoot}/app/layouts`, { recursive: true });
+    await Deno.writeTextFile(
+      `${appRoot}/app/layouts/Application.tsx`,
+      `/** @jsxImportSource npm:hono@^4/jsx */
+export default function Application(props: { children: unknown }) {
+  return <html><head><title>x</title></head><body>{props.children}</body></html>;
+}
+`,
+    );
+
+    const { server, baseUrl } = await startServer(appRoot);
+    try {
+      const res = await fetch(`${baseUrl}/render`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ page: "missing", props: {} }),
+      });
+
+      assertEquals(res.status, 404);
+      assertStringIncludes(await res.text(), "Render failed (404)");
     } finally {
       await server.shutdown();
     }

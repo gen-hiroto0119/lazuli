@@ -81,11 +81,22 @@ function escapeAttr(value: string): string {
 
 async function renderFragment(appRoot: string, fragment: string, props: Record<string, unknown>) {
   const fragmentPath = join(appRoot, "app", `${fragment}.tsx`);
-  const mtime = (await Deno.stat(fragmentPath)).mtime?.getTime() ?? Date.now();
+
+  let stat;
+  try {
+    stat = await Deno.stat(fragmentPath);
+  } catch (e) {
+    if (e instanceof Deno.errors.NotFound) {
+      throw new LazuliHttpError(404, `Fragment not found: ${fragment}`);
+    }
+    throw e;
+  }
+
+  const mtime = stat.mtime?.getTime() ?? Date.now();
   const mod = await import(`${toFileUrl(fragmentPath).href}?t=${mtime}`);
   const Component = mod.default;
   if (!Component) {
-    throw new Error(`Fragment component not found at ${fragmentPath}`);
+    throw new LazuliHttpError(500, `Fragment component not found: ${fragment}`);
   }
   const rendered = html`${<Component {...props} />}`;
   return String(rendered);
@@ -93,12 +104,32 @@ async function renderFragment(appRoot: string, fragment: string, props: Record<s
 
 const FRAGMENT_PATTERN = /^[a-zA-Z0-9_\-/]+$/;
 
+class LazuliHttpError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
 function validateFragment(fragment: string): boolean {
   if (!fragment) return false;
   if (!FRAGMENT_PATTERN.test(fragment)) return false;
   if (fragment.includes("..")) return false;
   if (fragment.startsWith("/")) return false;
   return true;
+}
+
+function respondError(c: any, context: string, err: unknown) {
+  const debug = Deno.env.get("LAZULI_DEBUG") === "1";
+  const status = err instanceof LazuliHttpError ? err.status : 500;
+
+  const message = err instanceof Error ? err.message : String(err);
+  const body = status >= 500 && !debug ? "Internal Server Error" : message;
+
+  const stack = debug && err instanceof Error && err.stack ? `\n\n${err.stack}` : "";
+  return c.text(`${context} failed (${status}): ${body}${stack}`, status);
 }
 
 // RPC Endpoint: Render Turbo Streams (fragments)
@@ -128,7 +159,7 @@ app.post("/render_turbo_stream", async (c) => {
 
       const fragment = String(s.fragment || "");
       if (!validateFragment(fragment)) {
-        return c.text("Invalid fragment for turbo stream operation", 400);
+        throw new LazuliHttpError(400, "Invalid fragment for turbo stream operation");
       }
 
       const props = (s.props || {}) as Record<string, unknown>;
@@ -139,7 +170,7 @@ app.post("/render_turbo_stream", async (c) => {
     return c.body(parts.join(""), 200, { "Content-Type": "text/vnd.turbo-stream.html; charset=utf-8" });
   } catch (e) {
     console.error("Turbo Stream render error:", e);
-    return c.text(e.toString(), 500);
+    return respondError(c, "Turbo Stream render", e);
   }
 });
 
@@ -153,9 +184,24 @@ app.post("/render", async (c) => {
     const pagePath = join(appRoot, "app", "pages", `${page}.tsx`);
     const layoutPath = join(appRoot, "app", "layouts", "Application.tsx");
 
+    let pageStat;
+    let layoutStat;
+    try {
+      pageStat = await Deno.stat(pagePath);
+    } catch (e) {
+      if (e instanceof Deno.errors.NotFound) throw new LazuliHttpError(404, `Page not found: ${page}`);
+      throw e;
+    }
+    try {
+      layoutStat = await Deno.stat(layoutPath);
+    } catch (e) {
+      if (e instanceof Deno.errors.NotFound) throw new LazuliHttpError(500, "Layout not found: Application");
+      throw e;
+    }
+
     // Import modules (cache-busted for hot reload)
-    const pageMtime = (await Deno.stat(pagePath)).mtime?.getTime() ?? Date.now();
-    const layoutMtime = (await Deno.stat(layoutPath)).mtime?.getTime() ?? Date.now();
+    const pageMtime = pageStat.mtime?.getTime() ?? Date.now();
+    const layoutMtime = layoutStat.mtime?.getTime() ?? Date.now();
     const PageModule = await import(`${toFileUrl(pagePath).href}?t=${pageMtime}`);
     const LayoutModule = await import(`${toFileUrl(layoutPath).href}?t=${layoutMtime}`);
 
@@ -226,7 +272,7 @@ app.post("/render", async (c) => {
     return c.html(injectedHtml);
   } catch (e) {
     console.error("Render error:", e);
-    return c.text(e.toString(), 500);
+    return respondError(c, "Render", e);
   }
 });
 
