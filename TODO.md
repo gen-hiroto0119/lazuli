@@ -2,9 +2,15 @@
 
 ## 直近（2025-12-17）
 
-- RPC: key の安定化 / paramsスキーマ検証 / CSRF・Origin 対策
-- ServerRunner: 子プロセス含む完全停止 + ログ簡素化
-- Turbo Streams: 最小API（builder + content negotiation + redirect/status整理）
+- [ ] **Turbo Streams: Ruby API をさらに短く（体験改善・最優先）**
+  - [x] `target:`/`targets:` の省略記法を最終整理（id/selector判定 + Symbol/Array対応）
+  - [x] 最短パターン（`stream { ... }` / `stream_or(...) { ... }`）を example / generator に固定
+  - [x] 受け入れ基準（READMEの最小例）がそのままコピペで動くことを確認
+- [ ] **Islands: hydration 自動化（MVP）**
+  - [ ] "use hydration" 検出 → 必要スクリプト自動注入
+- [ ] **DB: 最小Migration + Repository base**
+  - [ ] マイグレーション実行（create/rollback）
+  - [ ] `Lazuli::Repository` ベース（接続/クエリ/型変換の最小セット）
 
 ## 優先度: 高 (Core Features)
 
@@ -103,7 +109,7 @@
 - [ ] **Islands Architecture の自動化**
     - [ ] `"use hydration"` ディレクティブの自動検出
     - [ ] Hydration用スクリプトの自動注入（現状: ユーザーが `<Island ...>` を書く必要がある）
-- [ ] **エラーハンドリングの強化**
+- [x] **エラーハンドリングの強化**
     - [x] `Lazuli::RendererError` に status を保持（レンダリング失敗時にHTTP statusで扱える）
     - [x] Deno adapterのエラーレスポンスを統一（status付き + debug時のみstack、500は通常ISE）
     - [x] Deno側でのレンダリングエラーをRuby側で適切にキャッチして表示（HTMLエラーページ、500は通常サニタイズ）
@@ -114,7 +120,7 @@
     - [ ] `Lazuli::Repository` のベースクラス実装
 - [ ] **CLI UX拡張**
     - [ ] `generate resource`でslug/route指定とテンプレートコメント挿入
-- [ ] **ドキュメント整備**
+- [x] **ドキュメント整備**
     - [x] `packages/lazuli/README.md` を実用レベルに拡充（server/types/islands/turbo など）
     - [x] `packages/lazuli/docs/ARCHITECTURE.md` のディレクトリマッピング（views→pages/layouts/components等）を現状に合わせる
 - [ ] **サンプル拡充**

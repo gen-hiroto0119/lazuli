@@ -36,8 +36,8 @@ class UsersResource < Lazuli::Resource
     user = UserRepository.create(name: params[:name])
 
     stream_or(redirect_to("/users")) do |t|
-      t.append "users_list", "components/UserRow", user: user
-      t.update "flash", "components/FlashMessage", message: "Added"
+      t.append :users_list, "components/UserRow", user: user
+      t.update :flash, "components/FlashMessage", message: "Added"
     end
   end
 end

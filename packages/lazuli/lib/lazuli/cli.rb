@@ -241,8 +241,8 @@ module Lazuli
             item = #{repo_module}.create(params[:#{underscore(name)}] || {})
 
             stream_or(redirect_to("/#{underscore(name)}s")) do |t|
-              t.prepend "#{underscore(name)}s_list", "components/#{classified}Row", #{underscore(name)}: item
-              t.update "flash", "components/FlashMessage", message: "Created"
+              t.prepend :#{underscore(name)}s_list, "components/#{classified}Row", #{underscore(name)}: item
+              t.update :flash, "components/FlashMessage", message: "Created"
             end
           end
 
@@ -256,7 +256,7 @@ module Lazuli
 
             stream_or(redirect_to("/#{underscore(name)}s")) do |t|
               t.remove "#{underscore(name)}_\#{params[:id]}"
-              t.update "flash", "components/FlashMessage", message: "Deleted"
+              t.update :flash, "components/FlashMessage", message: "Deleted"
             end
           end
         end

@@ -68,6 +68,27 @@ class TurboStreamBuilderTest < Minitest::Test
     assert_equal({ action: :remove, targets: "#users_list li" }, t.operations[1])
   end
 
+  def test_symbol_target_is_coerced_to_string
+    t = Lazuli::TurboStream.new
+
+    t.update :flash, "components/Row", id: 1
+    t.remove :row_1
+
+    assert_equal(
+      { action: :update, target: "flash", fragment: "components/Row", props: { id: 1 } },
+      t.operations[0]
+    )
+    assert_equal({ action: :remove, target: "row_1" }, t.operations[1])
+  end
+
+  def test_targets_array_is_joined
+    t = Lazuli::TurboStream.new
+
+    t.remove targets: [".row", ".other"]
+
+    assert_equal({ action: :remove, targets: ".row, .other" }, t.operations[0])
+  end
+
   def test_invalid_fragment_is_rejected
     t = Lazuli::TurboStream.new
     assert_raises(ArgumentError) { t.append "a", fragment: "../secrets", props: {} }

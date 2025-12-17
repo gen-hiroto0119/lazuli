@@ -75,8 +75,30 @@ module Lazuli
       s.start_with?("#", ".", "[")
     end
 
+    def normalize_target(target)
+      target.is_a?(Symbol) ? target.to_s : target
+    end
+
+    def normalize_targets(targets)
+      if targets.is_a?(Array)
+        targets.map(&:to_s).join(", ")
+      elsif targets.is_a?(Symbol)
+        targets.to_s
+      else
+        targets
+      end
+    end
+
     def normalize_target_and_targets(target, targets)
-      return [target, targets] if targets
+      if targets
+        return [normalize_target(target), normalize_targets(targets)]
+      end
+
+      if target.is_a?(Array)
+        return [nil, normalize_targets(target)]
+      end
+
+      target = normalize_target(target)
       return [nil, target] if target.is_a?(String) && selectorish?(target)
       [target, nil]
     end
