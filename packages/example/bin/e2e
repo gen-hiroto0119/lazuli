@@ -20,6 +20,11 @@ trap cleanup EXIT
 
 bundle check >/dev/null 2>&1 || bundle install --quiet
 
+# Many environments install Deno into ~/.deno/bin but don't add it to PATH.
+if [[ -x "$HOME/.deno/bin/deno" ]]; then
+  export PATH="$HOME/.deno/bin:$PATH"
+fi
+
 if ! command -v deno >/dev/null 2>&1; then
   echo "ERROR: deno not found (install Deno to run this e2e smoke)" >&2
   exit 1

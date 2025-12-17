@@ -1,7 +1,7 @@
 "use hydration";
 
 import { useState } from "hono/jsx";
-import { rpc } from "/assets/client.rpc.ts";
+import { rpc } from "../client.rpc.ts";
 
 type User = {
   id: number;

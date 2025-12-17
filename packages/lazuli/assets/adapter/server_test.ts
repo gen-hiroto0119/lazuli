@@ -121,7 +121,7 @@ export default function Home(){
   return (
     <>
       <div data-lazuli-island="/assets/components/Widget.tsx" data-lazuli-props="p1">SSR</div>
-      <script id="p1" type="application/json">{"name":"x"}</script>
+      <script id="p1" type="application/json" dangerouslySetInnerHTML={{ __html: '{"name":"x"}' }} />
     </>
   );
 }

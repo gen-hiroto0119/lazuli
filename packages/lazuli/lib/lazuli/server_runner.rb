@@ -30,11 +30,19 @@ module Lazuli
 
       bump_reload_token if @reload
 
+      @shutdown_requested = false
+
       start_processes
       start_watcher if @reload
       trap_signals
       at_exit { stop_all }
-      sleep
+
+      loop do
+        break if @shutdown_requested
+        sleep 0.5
+      end
+
+      stop_all
     end
 
     private
@@ -48,8 +56,14 @@ module Lazuli
       token = current_reload_token
       ENV["LAZULI_RELOAD_TOKEN"] = token if @reload
 
+      deno = ENV["LAZULI_DENO"] || ENV["DENO"]
+      deno ||= begin
+        candidate = File.expand_path("~/.deno/bin/deno")
+        File.exist?(candidate) ? candidate : "deno"
+      end
+
       deno_cmd = [
-        "deno", "run", "-A", "--unstable-net",
+        deno, "run", "-A", "--unstable-net",
         "--config", File.join(@app_root, "deno.json"),
         adapter_path,
         "--app-root", @app_root,
@@ -121,8 +135,7 @@ module Lazuli
       %w[INT TERM].each do |sig|
         Signal.trap(sig) do
           log "[Lazuli] Shutting down..."
-          stop_all
-          exit
+          @shutdown_requested = true
         end
       end
     end
