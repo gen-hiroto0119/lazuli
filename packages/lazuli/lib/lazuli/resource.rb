@@ -87,6 +87,20 @@ module Lazuli
       [status, { "content-type" => "text/vnd.turbo-stream.html; charset=utf-8", "vary" => "accept" }, [body]]
     end
 
+    # Helper to avoid explicit branching in actions.
+    # Usage:
+    #   turbo_stream_or(redirect_to("/")) { |s| s.prepend ... }
+    def turbo_stream_or(fallback_response, error_target: "flash", error_targets: nil, &block)
+      if turbo_stream?
+        turbo_stream(error_target: error_target, error_targets: error_targets, &block)
+      else
+        fallback_response
+      end
+    end
+
+    alias stream turbo_stream
+    alias stream_or turbo_stream_or
+
     def escape_html(s)
       s.to_s.gsub("&", "&amp;").gsub("<", "&lt;").gsub(">", "&gt;").gsub('"', "&quot;")
     end

@@ -24,17 +24,13 @@ class TurboStreamResourceTest < Minitest::Test
 
   class MyResource < Lazuli::Resource
     def create
-      if turbo_stream?
-        turbo_stream do |t|
-          t.prepend "list", fragment: "components/Row", props: { id: 1 }
-          t.before "list", fragment: "components/Row", props: { id: 2 }
-          t.after "list", fragment: "components/Row", props: { id: 3 }
-          t.update "flash", fragment: "components/Flash", props: { message: "hi" }
-          t.replace "flash", fragment: "components/Flash", props: { message: "bye" }
-          t.remove "row_1"
-        end
-      else
-        redirect_to "/"
+      turbo_stream_or(redirect_to("/")) do |t|
+        t.prepend "list", fragment: "components/Row", props: { id: 1 }
+        t.before "list", fragment: "components/Row", props: { id: 2 }
+        t.after "list", fragment: "components/Row", props: { id: 3 }
+        t.update "flash", fragment: "components/Flash", props: { message: "hi" }
+        t.replace "flash", fragment: "components/Flash", props: { message: "bye" }
+        t.remove "row_1"
       end
     end
   end
