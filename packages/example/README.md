@@ -26,6 +26,10 @@ lazuli dev --reload
 
 Open http://localhost:9292
 
+## Styling (Tailwind)
+
+This example uses Tailwind **via CDN** (see `app/layouts/Application.tsx`) so it has **no build step**.
+
 ## E2E smoke (headless)
 
 ```bash
@@ -49,26 +53,27 @@ DURATION=10 CONCURRENCY=20 PORT=9294 ./bin/bench
 
 ### Turbo Drive
 
-- Click `Home` / `Users` / `Todos`
+- Click `Home` / `Todos`
 - "Boot time" should stay the same across navigations
 - `turbo:load count` should increase
 
-### Turbo Streams
-
-Go to `/users`:
-
-- Create user: form submit should update the list without full reload
-- Delete user: the row disappears via stream
-- Delete all (DELETE /users): list clears via `targets` selector demo
-
-### Islands hydration
+### Turbo Streams (DB-backed Todos)
 
 Go to `/todos`:
 
-- Add / toggle / delete should work client-side (component has `"use hydration"`)
+- Create todo: form submit should update the list without full reload
+- Toggle: row is replaced via stream
+- Delete: row disappears via stream
+- Delete all (DELETE /todos): list clears via `targets` selector demo
+
+### Islands hydration (minimal)
+
+Go to `/`:
+
+- Counter works client-side (component has `"use hydration"`)
 
 ### DB migrate
 
 - `db/development.sqlite3` should exist
-- `schema_migrations` table should include version `001`
-- `users` table should exist
+- `schema_migrations` table should include versions `001` and `002`
+- `todos` table should exist

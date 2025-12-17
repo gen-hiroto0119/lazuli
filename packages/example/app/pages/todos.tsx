@@ -1,5 +1,4 @@
-import Island from "lazuli/island";
-import TodoList from "../components/TodoList.tsx";
+import TodoRow from "../components/TodoRow.tsx";
 
 type Todo = {
   id: number;
@@ -7,15 +6,50 @@ type Todo = {
   done: boolean;
 };
 
-export default function TodosPage(props: { todos: Todo[]; now: number }) {
+export default function TodosPage(props: { todos: Todo[]; count: number }) {
   return (
-    <div style={{ padding: "12px" }}>
-      <h1>Todos (Turbo verification)</h1>
-      <p>Server time (props.now): {props.now}</p>
+    <div class="space-y-4">
+      <header class="space-y-1">
+        <h1 class="text-xl font-semibold">Todos</h1>
+        <p class="text-sm text-slate-600">DB-backed + Turbo Streams (no hooks).</p>
+      </header>
 
-      <div style={{ marginTop: "12px", border: "1px solid #ddd", padding: "12px" }}>
-        <h3>Interactive TodoList (Island)</h3>
-        <Island path="components/TodoList" component={TodoList} data={{ initialItems: props.todos }} />
+      <div id="flash"></div>
+
+      <div class="flex flex-wrap items-center gap-3">
+        <form method="post" action="/todos" class="flex flex-1 items-center gap-2">
+          <input
+            name="text"
+            placeholder="Add a todo"
+            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400"
+          />
+          <button
+            type="submit"
+            class="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+          >
+            Add
+          </button>
+        </form>
+
+        <a
+          href="/todos"
+          data-turbo-method="delete"
+          class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50"
+        >
+          Delete all
+        </a>
+      </div>
+
+      <section class="rounded-xl border bg-white">
+        <ul id="todos_list" class="divide-y">
+          {props.todos.map((todo) => (
+            <TodoRow todo={todo} key={todo.id} />
+          ))}
+        </ul>
+      </section>
+
+      <div id="todos_footer" class="text-sm text-slate-600">
+        Total todos: {props.count}
       </div>
     </div>
   );

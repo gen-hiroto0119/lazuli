@@ -1,3 +1,7 @@
 export default function FlashMessage(props: { message: string }) {
-  return <div style={{ padding: "8px", background: "#f5f5f5", border: "1px solid #ddd" }}>{props.message}</div>;
+  return (
+    <div class="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800">
+      {props.message}
+    </div>
+  );
 }

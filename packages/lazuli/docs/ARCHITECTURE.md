@@ -129,3 +129,40 @@ Lazuliは **Island Architecture** を採用しており、ページ全体では�
 | **Pages** | N/A | `app/pages/**/*.tsx` |
 | **Layouts** | N/A | `app/layouts/*.tsx` |
 | **Components / Fragments** | N/A | `app/components/**/*.tsx` |
+
+## 6. Performance（計測と改善ロードマップ）
+
+Lazuli は「Ruby が routing/operation、Deno が HTML/JSX 生成」という 2 プロセス構成のため、**Rack 本体の性能**に加えて **Ruby↔Deno の IPC（Unix socket）**のコストが支配的になりやすいです。
+
+### ローカルベンチ（現状の読み）
+
+`packages/example/bin/bench` は loopback 上での簡易 HTTP 負荷テストで、回帰（改善/劣化）の検知に使う想定です（絶対値の比較というより“変化”を見る）。
+
+目安:
+
+- SSR（/todos）: concurrency=20 で **~650–790 rps / avg ~25–31ms / p95 ~36–46ms**
+- SSR + Islands（/）: SSR より **~+5–10ms 程度**（hydration runtime 注入 + props + island マークアップ分）
+- Turbo Stream（POST /todos）: concurrency=4 で **~460–510 rps / avg ~8ms**
+
+### 改善の優先順（提案）
+
+1. **Falcon（Rack サーバ）**
+   - Ruby 側の同時接続耐性を上げ、IPC の待ち時間を“隠せる”ようにする。
+   - 想定: prod は `lazuli server` + Falcon（Rack のみ）を推奨（Renderer は別管理）。
+2. **YJIT（Ruby）**
+   - CPU-bound な Ruby 側（ルーティング/JSON/ストリーム組み立て/DB の薄い層）の底上げ。
+   - 実運用は環境変数や起動オプションで opt-in にする（doc に手順を固定）。
+3. **Oj（JSON）**
+   - `POST /render` / `POST /render_turbo_stream` / RPC など、Ruby↔Deno 間の JSON encode/decode を高速化。
+   - 互換性のため fallback を用意しつつ、内部の JSON encoder を差し替え可能にする。
+4. **async 化（I/O 待ちを隠す）**
+   - IPC 呼び出しや DB など I/O を並列化できるよう、将来の Async/Fiber 前提の設計余地を確保。
+   - 当面は「無理に全面 async にしない」方針で、Runner/Client の境界を綺麗に保つ。
+5. **UNIX 接続プール（Renderer socket）**
+   - Renderer への接続確立（Unix socket connect）をリクエストごとに行わない。
+   - `Lazuli::Renderer::Client` で keep-alive / connection pool を導入し、p95 のブレと平均レイテンシを下げる。
+
+### 受け入れ基準（例）
+
+- `packages/example/bin/bench` を複数回回しても、SSR/Islands/Streams の **p95 が大きく悪化しない**こと。
+- 改善タスクは “ベンチの出力を PR に貼る” ことで差分が追えること（数字は環境依存なので増減の理由説明を重視）。

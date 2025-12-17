@@ -83,23 +83,15 @@ concurrency = Integer(ENV.fetch("CONCURRENCY", "20"))
 
 # Keep DB growth under control for repeated runs.
 run_phase(
-  name: "cleanup users",
-  uri: URI.join(base.to_s + "/", "users"),
+  name: "cleanup todos",
+  uri: URI.join(base.to_s + "/", "todos"),
   method: :delete,
   duration_s: 1,
   concurrency: 1
 )
 
 run_phase(
-  name: "SSR (users index)",
-  uri: URI.join(base.to_s + "/", "users"),
-  method: :get,
-  duration_s: duration_s,
-  concurrency: concurrency
-)
-
-run_phase(
-  name: "SSR + Islands (todos)",
+  name: "SSR (todos index)",
   uri: URI.join(base.to_s + "/", "todos"),
   method: :get,
   duration_s: duration_s,
@@ -107,11 +99,19 @@ run_phase(
 )
 
 run_phase(
-  name: "Turbo Stream (POST /users)",
-  uri: URI.join(base.to_s + "/", "users"),
+  name: "SSR + Islands (home)",
+  uri: URI.join(base.to_s + "/", ""),
+  method: :get,
+  duration_s: duration_s,
+  concurrency: concurrency
+)
+
+run_phase(
+  name: "Turbo Stream (POST /todos)",
+  uri: URI.join(base.to_s + "/", "todos"),
   method: :post,
   headers: { "Accept" => "text/vnd.turbo-stream.html" },
-  form: { "name" => "bench" },
+  form: { "text" => "bench" },
   duration_s: duration_s,
   concurrency: [concurrency, 4].min
 )
