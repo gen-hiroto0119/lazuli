@@ -34,26 +34,14 @@ cd packages/example
 bundle install
 ```
 
-### Running the Application
+### Running the Application (Development)
 
-You need to run both the Deno adapter and the Ruby server.
+```bash
+cd packages/example
+lazuli dev --reload
+```
 
-1.  **Start the Deno Adapter (SSR & Assets):**
-
-    ```bash
-    # From project root
-    deno run -A --unstable-net --config packages/example/deno.json packages/lazuli/assets/adapter/server.tsx --app-root packages/example --socket packages/example/tmp/sockets/lazuli-renderer.sock
-    ```
-
-2.  **Start the Ruby Server:**
-
-    ```bash
-    # From packages/example
-    bundle exec rackup -p 9292
-    ```
-
-3.  **Access the application:**
-    Open `http://localhost:9292` in your browser.
+Open `http://localhost:9292` in your browser.
 
 ## Lazuli CLI (開発用)
 
@@ -61,7 +49,7 @@ You need to run both the Deno adapter and the Ruby server.
 
 - サーバー起動（Ruby + Deno同時起動・簡易ホットリロード付き）  
   ```bash
-  lazuli server --reload
+  lazuli dev --reload
   ```
 - リソース雛形生成  
   ```bash

@@ -18,8 +18,10 @@ module Lazuli
     def run
       cmd = @argv.shift
       case cmd
+      when "dev"
+        run_server(@argv, cmd_name: "dev")
       when "server"
-        run_server(@argv)
+        run_server(@argv, cmd_name: "server")
       when "new"
         run_new(@argv)
       when "types"
@@ -34,7 +36,7 @@ module Lazuli
 
     private
 
-    def run_server(argv)
+    def run_server(argv, cmd_name: "server")
       options = {
         app_root: Dir.pwd,
         socket: nil,
@@ -43,7 +45,7 @@ module Lazuli
       }
 
       parser = OptionParser.new do |o|
-        o.banner = "Usage: lazuli server [options]"
+        o.banner = "Usage: lazuli #{cmd_name} [options]"
         o.on("--app-root PATH", "Path to app root (default: cwd)") { |v| options[:app_root] = File.expand_path(v) }
         o.on("--socket PATH", "Unix socket path for Deno renderer") { |v| options[:socket] = File.expand_path(v) }
         o.on("--port PORT", Integer, "Rack port (default: 9292)") { |v| options[:port] = v }
@@ -140,7 +142,7 @@ module Lazuli
       puts "Next steps:"
       puts "  cd #{name}"
       puts "  bundle install"
-      puts "  lazuli server --reload"
+      puts "  lazuli dev --reload"
     end
 
     def run_generate(argv)
@@ -281,6 +283,7 @@ module Lazuli
         Usage: lazuli <command> [options]
 
         Commands:
+          dev          Start Ruby + Deno servers (development)
           server       Start Ruby + Deno servers
           new NAME     Create a new Lazuli project
           generate     Generate code (resource)
