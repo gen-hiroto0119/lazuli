@@ -50,7 +50,7 @@
 - [ ] **ServerRunner 改善**
     - [x] ウォッチ対象に config/deno.json を含める
     - [x] 終了時にDeno/Rackを停止しソケットをクリーンアップ（基本）
-    - [ ] プロセスグループ/子プロセス含む完全停止
+    - [x] プロセスグループ/子プロセス含む完全停止（pgid kill + at_exit cleanup）
     - [ ] ログ簡素化・リトライ制御
 - [ ] **プロセスモデルの整理（App/ServerRunner）**
     - [x] 方針: Deno管理は `Lazuli::ServerRunner`（CLI）に集約し、`Lazuli::App` はRackアプリとして純粋に保つ

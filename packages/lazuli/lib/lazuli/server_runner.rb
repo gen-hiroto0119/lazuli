@@ -29,6 +29,7 @@ module Lazuli
       start_processes
       start_watcher if @reload
       trap_signals
+      at_exit { stop_all }
       sleep
     end
 
@@ -136,9 +137,15 @@ module Lazuli
       pid = @pids[key]
       return unless pid
 
+      pgid = begin
+        Process.getpgid(pid)
+      rescue StandardError
+        pid
+      end
+
       begin
-        # Kill the whole process group (deno may spawn child processes).
-        Process.kill("TERM", -pid)
+        # Kill the whole process group (deno/rack may spawn child processes).
+        Process.kill("TERM", -pgid)
       rescue Errno::ESRCH
       end
 
@@ -146,7 +153,7 @@ module Lazuli
         Timeout.timeout(5) { Process.wait(pid) }
       rescue Timeout::Error
         begin
-          Process.kill("KILL", -pid)
+          Process.kill("KILL", -pgid)
         rescue Errno::ESRCH
         end
         begin
@@ -155,6 +162,14 @@ module Lazuli
         end
       rescue Errno::ECHILD
       ensure
+        # Best-effort: if the leader exited but children are still alive in the group, terminate them too.
+        begin
+          Process.kill(0, -pgid)
+          Process.kill("KILL", -pgid)
+        rescue Errno::ESRCH
+        rescue Errno::EPERM
+        end
+
         @pids[key] = nil
       end
     end
