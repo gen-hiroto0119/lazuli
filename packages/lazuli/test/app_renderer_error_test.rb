@@ -47,4 +47,22 @@ class AppRendererErrorTest < Minitest::Test
     ENV["LAZULI_DEBUG"] = old
     Lazuli::Renderer.define_singleton_method(:render, &original)
   end
+
+  def test_renderer_error_returns_turbo_stream_when_accepts_turbo_stream
+    original = Lazuli::Renderer.method(:render)
+    Lazuli::Renderer.define_singleton_method(:render) do |_page, _props|
+      raise Lazuli::RendererError.new(status: 400, body: "Bad fragment", message: "Bad fragment")
+    end
+
+    status, headers, body = @app.call(
+      Rack::MockRequest.env_for("/", "HTTP_ACCEPT" => "text/vnd.turbo-stream.html")
+    )
+
+    assert_equal 400, status
+    assert_equal "text/vnd.turbo-stream.html; charset=utf-8", headers["content-type"]
+    assert_includes body.join, "<turbo-stream"
+    assert_includes body.join, "Bad fragment"
+  ensure
+    Lazuli::Renderer.define_singleton_method(:render, &original)
+  end
 end

@@ -2,6 +2,7 @@ require "rack"
 require "json"
 
 require_relative "renderer"
+require_relative "resource"
 
 module Lazuli
   class App
@@ -87,6 +88,15 @@ module Lazuli
         else
           e.body.to_s.empty? ? e.message : e.body.to_s
         end
+
+        if accepts_turbo_stream?(req)
+          target = ENV["LAZULI_TURBO_ERROR_TARGET"].to_s
+          target = "flash" if target.empty?
+          msg = escape_html(msg)
+          body = %(<turbo-stream action="update" target="#{escape_html(target)}"><template><pre>#{msg}</pre></template></turbo-stream>)
+          return [status, { "content-type" => "text/vnd.turbo-stream.html; charset=utf-8", "vary" => "accept" }, [body]]
+        end
+
         msg = escape_html(msg)
         body = "<!DOCTYPE html><html><head><meta charset=\"utf-8\" /></head><body><pre>#{msg}</pre></body></html>"
         [status, { "content-type" => "text/html; charset=utf-8" }, [body]]
@@ -133,6 +143,25 @@ module Lazuli
 
     def escape_html(s)
       s.to_s.gsub("&", "&amp;").gsub("<", "&lt;").gsub(">", "&gt;").gsub('"', "&quot;")
+    end
+
+    def accepts_turbo_stream?(req)
+      accept = req.get_header("HTTP_ACCEPT").to_s
+      return false if accept.strip.empty?
+
+      accept.split(",").any? do |part|
+        type, *params = part.strip.split(";")
+        next false unless type.strip == Lazuli::Resource::TURBO_STREAM_MIME
+
+        q = 1.0
+        params.each do |p|
+          k, v = p.strip.split("=", 2)
+          next unless k == "q"
+          q = v.to_f
+        end
+
+        q > 0
+      end
     end
 
     def content_type_for(path)

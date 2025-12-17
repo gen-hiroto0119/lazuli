@@ -89,7 +89,7 @@
     - [x] `Lazuli::RendererError` に status を保持（レンダリング失敗時にHTTP statusで扱える）
     - [x] Deno adapterのエラーレスポンスを統一（status付き + debug時のみstack、500は通常ISE）
     - [x] Deno側でのレンダリングエラーをRuby側で適切にキャッチして表示（HTMLエラーページ、500は通常サニタイズ）
-    - [ ] (任意) turbo-stream時は flash 等に update する共通ハンドラ
+    - [x] (任意) turbo-stream時は flash 等に update する共通ハンドラ（Accept turbo-stream 時の RendererError を turbo-stream で返す）
     - [ ] 開発モードでの詳細なエラー画面
 - [ ] **データベース連携の強化**
     - [ ] マイグレーション機能の統合
