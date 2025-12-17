@@ -3,6 +3,7 @@ require "json"
 
 require_relative "renderer"
 require_relative "resource"
+require_relative "turbo_stream"
 
 module Lazuli
   class App
