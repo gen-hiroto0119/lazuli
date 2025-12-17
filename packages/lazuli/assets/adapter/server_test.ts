@@ -1,11 +1,17 @@
 import { assertEquals, assertStringIncludes } from "jsr:@std/assert@^0.224.0";
 
-async function startServer() {
-  const app = await import("./server.tsx");
-  const server = Deno.serve({ hostname: "127.0.0.1", port: 0 }, app.default.fetch);
-  const addr = server.addr as Deno.NetAddr;
-  const baseUrl = `http://127.0.0.1:${addr.port}`;
-  return { server, baseUrl };
+async function startServer(appRoot?: string) {
+  const cwd = Deno.cwd();
+  try {
+    if (appRoot) Deno.chdir(appRoot);
+    const app = await import(`./server.tsx?t=${Date.now()}`);
+    const server = Deno.serve({ hostname: "127.0.0.1", port: 0 }, app.default.fetch);
+    const addr = server.addr as Deno.NetAddr;
+    const baseUrl = `http://127.0.0.1:${addr.port}`;
+    return { server, baseUrl };
+  } finally {
+    Deno.chdir(cwd);
+  }
 }
 
 Deno.test("render_turbo_stream rejects invalid fragment", async () => {
@@ -40,5 +46,47 @@ Deno.test("render_turbo_stream supports targets for remove", async () => {
     assertStringIncludes(await res.text(), 'targets="#users_list li"');
   } finally {
     await server.shutdown();
+  }
+});
+
+Deno.test("render supports basic SSR", async () => {
+  const appRoot = await Deno.makeTempDir();
+  try {
+    await Deno.mkdir(`${appRoot}/app/pages`, { recursive: true });
+    await Deno.mkdir(`${appRoot}/app/layouts`, { recursive: true });
+
+    await Deno.writeTextFile(
+      `${appRoot}/app/layouts/Application.tsx`,
+      `/** @jsxImportSource npm:hono@^4/jsx */
+export default function Application(props: { children: unknown }) {
+  return <html><head><title>x</title></head><body>{props.children}</body></html>;
+}
+`,
+    );
+
+    await Deno.writeTextFile(
+      `${appRoot}/app/pages/home.tsx`,
+      `/** @jsxImportSource npm:hono@^4/jsx */
+export default function Home(){ return <div>Home</div>; }
+`,
+    );
+
+    const { server, baseUrl } = await startServer(appRoot);
+    try {
+      const res = await fetch(`${baseUrl}/render`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ page: "home", props: {} }),
+      });
+
+      assertEquals(res.status, 200);
+      const text = await res.text();
+      assertStringIncludes(text, "<!DOCTYPE html>");
+      assertStringIncludes(text, "Home");
+    } finally {
+      await server.shutdown();
+    }
+  } finally {
+    await Deno.remove(appRoot, { recursive: true });
   }
 });

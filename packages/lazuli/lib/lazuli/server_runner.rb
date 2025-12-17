@@ -1,4 +1,5 @@
 require "fileutils"
+require "timeout"
 
 require_relative "type_generator"
 
@@ -62,7 +63,7 @@ module Lazuli
         "LAZULI_RELOAD_ENABLED" => @reload ? "1" : nil,
         "LAZULI_RELOAD_TOKEN_PATH" => @reload_token_path
       }.compact
-      @pids[:deno] = Process.spawn(deno_env, *deno_cmd, chdir: @app_root, out: $stdout, err: $stderr)
+      @pids[:deno] = Process.spawn(deno_env, *deno_cmd, chdir: @app_root, out: $stdout, err: $stderr, pgroup: true)
       puts "[Lazuli] Deno PID: #{@pids[:deno]}"
 
       puts "[Lazuli] Starting Rack server on port #{@port}..."
@@ -77,7 +78,8 @@ module Lazuli
         *rack_cmd,
         chdir: @app_root,
         out: $stdout,
-        err: $stderr
+        err: $stderr,
+        pgroup: true
       )
       puts "[Lazuli] Rack PID: #{@pids[:rack]}"
     end
@@ -133,10 +135,25 @@ module Lazuli
     def stop_process(key)
       pid = @pids[key]
       return unless pid
+
       begin
-        Process.kill("TERM", pid)
-        Process.wait(pid)
-      rescue Errno::ESRCH, Errno::ECHILD
+        # Kill the whole process group (deno may spawn child processes).
+        Process.kill("TERM", -pid)
+      rescue Errno::ESRCH
+      end
+
+      begin
+        Timeout.timeout(5) { Process.wait(pid) }
+      rescue Timeout::Error
+        begin
+          Process.kill("KILL", -pid)
+        rescue Errno::ESRCH
+        end
+        begin
+          Process.wait(pid)
+        rescue Errno::ECHILD
+        end
+      rescue Errno::ECHILD
       ensure
         @pids[key] = nil
       end

@@ -3,6 +3,7 @@ require "date"
 
 require_relative "struct"
 require_relative "types"
+require_relative "resource"
 
 module Lazuli
   class TypeGenerator
@@ -29,6 +30,7 @@ module Lazuli
 
     def generate
       load_app_structs
+      load_app_resources
       declarations = build_declarations
       FileUtils.mkdir_p(File.dirname(@out_path))
       File.write(@out_path, declarations)
@@ -61,6 +63,7 @@ module Lazuli
 
     def build_declarations
       structs = ObjectSpace.each_object(Class).select { |c| c < Lazuli::Struct }
+      resources = ObjectSpace.each_object(Class).select { |c| defined?(Lazuli::Resource) && c < Lazuli::Resource }
       @interface_names = build_interface_names(structs)
 
       seen = {}
@@ -80,7 +83,43 @@ module Lazuli
         lines << ""
       end
 
+      rpc_lines = build_rpc_declarations(resources)
+      lines.concat(rpc_lines) unless rpc_lines.empty?
+
       lines.join("\n")
+    end
+
+    def load_app_resources
+      files = Dir[File.join(@app_root, "app", "resources", "**", "*.rb")].sort
+      files.each do |file|
+        begin
+          require file
+        rescue StandardError
+          # Best-effort: resources may reference unresolved constants; structs should still generate.
+          next
+        end
+      end
+    end
+
+    def build_rpc_declarations(resources)
+      defs = []
+      resources.sort_by(&:name).each do |resource|
+        next unless resource.respond_to?(:rpc_definitions)
+        resource.rpc_definitions.each do |name, opts|
+          ret = map_type(opts[:returns])
+          defs << ["#{resource.name}##{name}", ret]
+        end
+      end
+
+      return [] if defs.empty?
+
+      lines = ["// RPC response types (from Resource.rpc)", "export interface RpcResponses {"]
+      defs.sort_by(&:first).each do |key, ret|
+        lines << "  \"#{key}\": #{ret};"
+      end
+      lines << "}"
+      lines << ""
+      lines
     end
 
     def build_interface_names(structs)

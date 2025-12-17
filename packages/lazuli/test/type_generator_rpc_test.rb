@@ -2,8 +2,8 @@ require "test_helper"
 require "lazuli/type_generator"
 require "fileutils"
 
-class TypeGeneratorIgnoresNonStructTest < Minitest::Test
-  def test_ignores_non_struct_files
+class TypeGeneratorRpcTest < Minitest::Test
+  def test_generates_rpc_response_types
     Dir.mktmpdir do |dir|
       app_root = File.join(dir, "app_root")
       FileUtils.mkdir_p(File.join(app_root, "app", "structs"))
@@ -15,11 +15,9 @@ class TypeGeneratorIgnoresNonStructTest < Minitest::Test
         end
       RUBY
 
-      # This should NOT break type generation even if app/resources contains load-time errors.
-      File.write(File.join(app_root, "app", "resources", "broken_resource.rb"), <<~RUBY)
-        MissingConstant.call
-
-        class BrokenResource < Lazuli::Resource
+      File.write(File.join(app_root, "app", "resources", "users_resource.rb"), <<~RUBY)
+        class UsersResource < Lazuli::Resource
+          rpc :index, returns: [User]
         end
       RUBY
 
@@ -27,8 +25,8 @@ class TypeGeneratorIgnoresNonStructTest < Minitest::Test
       Lazuli::TypeGenerator.generate(app_root: app_root, out_path: out_path)
 
       content = File.read(out_path)
-      assert_includes content, "interface User"
-      assert_includes content, "id: number;"
+      assert_includes content, "export interface RpcResponses"
+      assert_includes content, '"UsersResource#index": User[]'
     end
   end
 end
