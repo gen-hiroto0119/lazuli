@@ -12,7 +12,7 @@ Ruby for routing/thinking + Deno(Hono JSX) for rendering.
 
 ```sh
 deno run -A --unstable-net \
-  --config "$(bundle show lazuli)/assets/adapter/deno.json" \
+  --config "$(pwd)/deno.json" \
   "$(bundle show lazuli)/assets/adapter/server.tsx" \
   --app-root "$(pwd)" \
   --socket "$(pwd)/tmp/sockets/lazuli-renderer.sock"
@@ -54,6 +54,32 @@ stream do |t|
   t.remove "#users_list li"         # => targets: "#users_list li"
   t.update "#flash", "components/Flash", message: "hi"
 end
+```
+
+## Islands (hydration)
+
+Use `<Island />` to hydrate just a small interactive region; Lazuli will auto-inject the hydration runtime when it sees `data-lazuli-island` in the HTML.
+
+Interactive components can start with `"use hydration";` as a simple convention (it’s a no-op directive).
+
+```tsx
+// app/components/Counter.tsx
+"use hydration";
+import { useState } from "hono/jsx";
+export default function Counter(props: { initialCount: number }) {
+  const [count, setCount] = useState(props.initialCount);
+  return <button onClick={() => setCount(count + 1)}>Count: {count}</button>;
+}
+```
+
+```tsx
+// app/pages/home.tsx
+import Island from "lazuli/island";
+import Counter from "../components/Counter.tsx";
+
+export default function Home() {
+  return <Island path="components/Counter" component={Counter} data={{ initialCount: 1 }} />;
+}
 ```
 
 ## RPC (experimental)

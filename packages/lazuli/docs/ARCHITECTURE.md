@@ -18,7 +18,7 @@ Lazuliは Ruby (Rack) と Deno (Renderer/Assets) の **2プロセス** で動作
 ### ライフサイクル（起動方法）
 
 *   **開発/統合起動:** `lazuli dev` が `Lazuli::ServerRunner` として Rack + Deno を同時に起動し、終了シグナルで両方を確実に停止します。
-*   **Rack単体起動:** `bundle exec rackup` / `lazuli server` は Rack のみ起動します（Deno spawn はしません）。Renderer は別プロセスで起動してください（例: `deno run -A --unstable-net --config "$(bundle show lazuli)/assets/adapter/deno.json" "$(bundle show lazuli)/assets/adapter/server.tsx" --app-root $(pwd) --socket $(pwd)/tmp/sockets/lazuli-renderer.sock`）。
+*   **Rack単体起動:** `bundle exec rackup` / `lazuli server` は Rack のみ起動します（Deno spawn はしません）。Renderer は別プロセスで起動してください（例: `deno run -A --unstable-net --config "$(pwd)/deno.json" "$(bundle show lazuli)/assets/adapter/server.tsx" --app-root $(pwd) --socket $(pwd)/tmp/sockets/lazuli-renderer.sock`）。
 
 Turbo Streams の `<template>` 断片は Ruby では生成せず、Ruby は「operation を積む」だけに徹し、Deno が JSX fragment をレンダリングします。Ruby 側は `stream { ... }`（=`turbo_stream`）で操作を組み立て、`t.append "list", "components/Row", id: 1` のように `props:` を省略できます。
 
@@ -28,7 +28,7 @@ Turbo Streams の `<template>` 断片は Ruby では生成せず、Ruby は「op
 
 1.  **Runner Boot:** `Lazuli::ServerRunner` が起動。
 2.  **Socket Check:** 既存のソケットファイルを確認し、クリーンアップします。
-3.  **Deno Spawn:** `deno run -A --unstable-net --config "$(bundle show lazuli)/assets/adapter/deno.json" "$(bundle show lazuli)/assets/adapter/server.tsx" --app-root $(pwd) --socket $(pwd)/tmp/sockets/lazuli-renderer.sock` でRendererを起動し、socket ready を待ちます。
+3.  **Deno Spawn:** `deno run -A --unstable-net --config "$(pwd)/deno.json" "$(bundle show lazuli)/assets/adapter/server.tsx" --app-root $(pwd) --socket $(pwd)/tmp/sockets/lazuli-renderer.sock` でRendererを起動し、socket ready を待ちます。
 4.  **Rack Spawn:** `bundle exec rackup` でRackサーバーを起動します。
 5.  **Ready:** HTTPトラフィックの受け付けを開始します。
 
@@ -114,8 +114,11 @@ sequenceDiagram
 
 Lazuliは **Island Architecture** を採用しており、ページ全体ではなく、必要な部分だけをインタラクティブにします。
 
-*   **サーバーサイド:** `<Island />` コンポーネントは、ラップされたコンポーネントを静的HTMLとしてレンダリングし、同時にクライアントサイドでのHydration用の `<script>` タグを出力します。
-*   **クライアントサイド:** ブラウザは生成されたスクリプトを実行し、`hono/jsx/dom` を使用して指定されたコンポーネントをマウントします。
+*   **サーバーサイド:** `<Island />` コンポーネントは、ラップされたコンポーネントを静的HTMLとしてレンダリングし、同時に `data-lazuli-island` / `data-lazuli-props` を出力します。
+*   **レンダラ側（自動）:** HTML に `data-lazuli-island` が含まれる場合のみ、Renderer（Deno）が hydration runtime を `<head>` に自動注入します（ユーザーが script を書く必要はありません）。
+*   **クライアントサイド:** ブラウザは自動注入された runtime が `hono/jsx/dom` を使って、指定されたコンポーネントをマウントします。
+
+補足: Island として使うコンポーネントは `"use hydration";` を先頭に書く運用を推奨します（現状は no-op ですが、意図が明確になります）。
 
 ## 5. ディレクトリ構成マッピング
 
