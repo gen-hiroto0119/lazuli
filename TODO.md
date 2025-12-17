@@ -73,6 +73,22 @@
 
 ## 優先度: 中 (Enhancements)
 
+- [ ] **Turbo Streams: Ruby API の簡素化（Resource側のコード量を減らす）**
+    - [ ] `Lazuli::Resource#turbo_stream` の責務を整理
+        - [ ] 現状の `turbo_stream?` / content negotiation / escape_html / エラーハンドリングが分散しているので、共通モジュール or Response層に集約
+        - [ ] `Resource` は「操作(operations)を返すだけ」に寄せ、Rackレスポンス生成（status/headers/body）はApp側で一括処理できる形にする
+    - [ ] **暗黙レスポンス化**（ユーザーが `[status, headers, body]` を意識しない）
+        - [ ] actionが `Lazuli::TurboStream`（or `Lazuli::Response::TurboStream`）を返したら自動で `Content-Type: text/vnd.turbo-stream.html` を付与して返す
+        - [ ] actionが `String` を返したらHTMLとして返す、のように戻り値で分岐する既存方針と整合
+    - [ ] **DSLを短くする**
+        - [ ] `turbo_stream { |s| ... }` を `stream { ... }` など短いエイリアスで提供（hooks最小のまま）
+        - [ ] `fragment:` 必須は維持しつつ、`target:` の頻出ケースを省略しやすいAPIにする（例: `append("items", fragment: "items/item", props: {...})`）
+    - [ ] エラー表示の重複排除
+        - [ ] `Resource#turbo_stream` と `App` の turbo-stream エラー表示が二重なので、どちらか一箇所に統一（debug/非debug、flash targetなど）
+    - [ ] 受け入れ基準（最小の書き味）
+        - [ ] ユーザーコード例: `def create; stream { |s| s.prepend "items", fragment: "items/item", props: {...} }; end` だけで動く
+        - [ ] `Accept: text/vnd.turbo-stream.html` のとき自動でstream、そうでないときは通常HTML/redirectのまま
+
 - [x] **Sorbet/Ruby LSP の開発環境整備**
     - [x] monorepo rootにGemfile/sorbet configを配置（VSCodeで動作）
     - [x] Rack向けの最小RBI shim追加
