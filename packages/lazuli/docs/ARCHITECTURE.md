@@ -20,6 +20,8 @@ Lazuliは Ruby (Rack) と Deno (Renderer/Assets) の **2プロセス** で動作
 *   **開発/統合起動:** `lazuli dev` が `Lazuli::ServerRunner` として Rack + Deno を同時に起動し、終了シグナルで両方を確実に停止します。
 *   **Rack単体起動:** `bundle exec rackup` / `lazuli server` は Rack のみ起動します（Deno spawn はしません）。Renderer は別プロセスで起動してください。
 
+Turbo Streams の `<template>` 断片は Ruby では生成せず、Ruby は「operation を積む」だけに徹し、Deno が JSX fragment をレンダリングします。Ruby 側は `stream { ... }`（=`turbo_stream`）で操作を組み立て、`t.append "list", "components/Row", id: 1` のように `props:` を省略できます。
+
 ### 起動シーケンス（lazuli dev）
 
 1.  **Runner Boot:** `Lazuli::ServerRunner` が起動。

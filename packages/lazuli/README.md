@@ -25,9 +25,9 @@ class UsersResource < Lazuli::Resource
   def create
     user = UserRepository.create(name: params[:name])
 
-    return turbo_stream do |t|
-      t.append "users_list", fragment: "components/UserRow", props: { user: user }
-      t.update "flash", fragment: "components/FlashMessage", props: { message: "Added" }
+    return stream do |t|
+      t.append "users_list", "components/UserRow", user: user
+      t.update "flash", "components/FlashMessage", message: "Added"
     end if turbo_stream?
 
     redirect_to "/users" # defaults to 303 for non-GET

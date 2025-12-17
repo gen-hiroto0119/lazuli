@@ -10,27 +10,39 @@ module Lazuli
       @error_targets = error_targets
     end
 
-    def append(target = nil, fragment:, props: {}, targets: nil)
+    def append(target = nil, fragment_arg = nil, fragment: nil, props: {}, targets: nil, **extra_props)
+      fragment ||= fragment_arg
+      props = props.merge(extra_props) unless extra_props.empty?
       op(:append, target, targets: targets, fragment: fragment, props: props)
     end
 
-    def prepend(target = nil, fragment:, props: {}, targets: nil)
+    def prepend(target = nil, fragment_arg = nil, fragment: nil, props: {}, targets: nil, **extra_props)
+      fragment ||= fragment_arg
+      props = props.merge(extra_props) unless extra_props.empty?
       op(:prepend, target, targets: targets, fragment: fragment, props: props)
     end
 
-    def replace(target = nil, fragment:, props: {}, targets: nil)
+    def replace(target = nil, fragment_arg = nil, fragment: nil, props: {}, targets: nil, **extra_props)
+      fragment ||= fragment_arg
+      props = props.merge(extra_props) unless extra_props.empty?
       op(:replace, target, targets: targets, fragment: fragment, props: props)
     end
 
-    def update(target = nil, fragment:, props: {}, targets: nil)
+    def update(target = nil, fragment_arg = nil, fragment: nil, props: {}, targets: nil, **extra_props)
+      fragment ||= fragment_arg
+      props = props.merge(extra_props) unless extra_props.empty?
       op(:update, target, targets: targets, fragment: fragment, props: props)
     end
 
-    def before(target = nil, fragment:, props: {}, targets: nil)
+    def before(target = nil, fragment_arg = nil, fragment: nil, props: {}, targets: nil, **extra_props)
+      fragment ||= fragment_arg
+      props = props.merge(extra_props) unless extra_props.empty?
       op(:before, target, targets: targets, fragment: fragment, props: props)
     end
 
-    def after(target = nil, fragment:, props: {}, targets: nil)
+    def after(target = nil, fragment_arg = nil, fragment: nil, props: {}, targets: nil, **extra_props)
+      fragment ||= fragment_arg
+      props = props.merge(extra_props) unless extra_props.empty?
       op(:after, target, targets: targets, fragment: fragment, props: props)
     end
 

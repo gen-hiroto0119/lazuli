@@ -44,6 +44,17 @@ class TurboStreamBuilderTest < Minitest::Test
     assert_equal({ action: :remove, targets: ".row" }, ops[6])
   end
 
+  def test_shorthand_accepts_positional_fragment_and_keyword_props
+    t = Lazuli::TurboStream.new
+
+    t.append "a", "components/Row", id: 1
+
+    assert_equal(
+      { action: :append, target: "a", fragment: "components/Row", props: { id: 1 } },
+      t.operations[0]
+    )
+  end
+
   def test_invalid_fragment_is_rejected
     t = Lazuli::TurboStream.new
     assert_raises(ArgumentError) { t.append "a", fragment: "../secrets", props: {} }
