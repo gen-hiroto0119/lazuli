@@ -37,10 +37,10 @@ class TurboStreamResourceTest < Minitest::Test
 
   def test_turbo_stream_records_operations_and_returns_stream_content_type
     captured = nil
-    original = Lazuli::Renderer.method(:render_turbo_stream)
-    Lazuli::Renderer.define_singleton_method(:render_turbo_stream) do |ops|
+    original = Lazuli::Renderer.method(:render_turbo_stream_rendered)
+    Lazuli::Renderer.define_singleton_method(:render_turbo_stream_rendered) do |ops|
       captured = ops
-      "<turbo-stream></turbo-stream>"
+      Lazuli::Renderer::Rendered.new(body: "<turbo-stream></turbo-stream>", headers: {})
     end
 
     status, headers, body = @app.call(
@@ -61,12 +61,12 @@ class TurboStreamResourceTest < Minitest::Test
     assert_equal :replace, captured[4][:action]
     assert_equal :remove, captured[5][:action]
   ensure
-    Lazuli::Renderer.define_singleton_method(:render_turbo_stream, &original)
+    Lazuli::Renderer.define_singleton_method(:render_turbo_stream_rendered, &original)
   end
 
   def test_format_param_enables_turbo_stream
-    original = Lazuli::Renderer.method(:render_turbo_stream)
-    Lazuli::Renderer.define_singleton_method(:render_turbo_stream) { |_ops| "<turbo-stream></turbo-stream>" }
+    original = Lazuli::Renderer.method(:render_turbo_stream_rendered)
+    Lazuli::Renderer.define_singleton_method(:render_turbo_stream_rendered) { |_ops| Lazuli::Renderer::Rendered.new(body: "<turbo-stream></turbo-stream>", headers: {}) }
 
     status, headers, _body = @app.call(
       Rack::MockRequest.env_for("/my?format=turbo_stream", method: "POST")
@@ -75,7 +75,7 @@ class TurboStreamResourceTest < Minitest::Test
     assert_equal 200, status
     assert_equal "text/vnd.turbo-stream.html; charset=utf-8", headers["content-type"]
   ensure
-    Lazuli::Renderer.define_singleton_method(:render_turbo_stream, &original)
+    Lazuli::Renderer.define_singleton_method(:render_turbo_stream_rendered, &original)
   end
 
   def test_accept_q_0_disables_turbo_stream
@@ -88,8 +88,8 @@ class TurboStreamResourceTest < Minitest::Test
   end
 
   def test_accept_with_q_enables_turbo_stream
-    original = Lazuli::Renderer.method(:render_turbo_stream)
-    Lazuli::Renderer.define_singleton_method(:render_turbo_stream) { |_ops| "<turbo-stream></turbo-stream>" }
+    original = Lazuli::Renderer.method(:render_turbo_stream_rendered)
+    Lazuli::Renderer.define_singleton_method(:render_turbo_stream_rendered) { |_ops| Lazuli::Renderer::Rendered.new(body: "<turbo-stream></turbo-stream>", headers: {}) }
 
     status, headers, _body = @app.call(
       Rack::MockRequest.env_for("/my", method: "POST", "HTTP_ACCEPT" => "text/html;q=1.0, text/vnd.turbo-stream.html;q=0.9")
@@ -98,7 +98,7 @@ class TurboStreamResourceTest < Minitest::Test
     assert_equal 200, status
     assert_equal "text/vnd.turbo-stream.html; charset=utf-8", headers["content-type"]
   ensure
-    Lazuli::Renderer.define_singleton_method(:render_turbo_stream, &original)
+    Lazuli::Renderer.define_singleton_method(:render_turbo_stream_rendered, &original)
   end
 
   def test_accept_star_does_not_enable_turbo_stream
@@ -121,10 +121,10 @@ class TurboStreamResourceTest < Minitest::Test
 
   def test_targets_are_preserved_in_operations
     captured = nil
-    original = Lazuli::Renderer.method(:render_turbo_stream)
-    Lazuli::Renderer.define_singleton_method(:render_turbo_stream) do |ops|
+    original = Lazuli::Renderer.method(:render_turbo_stream_rendered)
+    Lazuli::Renderer.define_singleton_method(:render_turbo_stream_rendered) do |ops|
       captured = ops
-      "<turbo-stream></turbo-stream>"
+      Lazuli::Renderer::Rendered.new(body: "<turbo-stream></turbo-stream>", headers: {})
     end
 
     status, _headers, _body = @app.call(
@@ -134,7 +134,7 @@ class TurboStreamResourceTest < Minitest::Test
     assert_equal 200, status
     assert_equal ".row", captured.first[:targets]
   ensure
-    Lazuli::Renderer.define_singleton_method(:render_turbo_stream, &original)
+    Lazuli::Renderer.define_singleton_method(:render_turbo_stream_rendered, &original)
   end
 
   def test_invalid_fragment_is_rejected
@@ -153,8 +153,8 @@ class TurboStreamResourceTest < Minitest::Test
   end
 
   def test_stream_renderer_error_preserves_status
-    original = Lazuli::Renderer.method(:render_turbo_stream)
-    Lazuli::Renderer.define_singleton_method(:render_turbo_stream) do |_ops|
+    original = Lazuli::Renderer.method(:render_turbo_stream_rendered)
+    Lazuli::Renderer.define_singleton_method(:render_turbo_stream_rendered) do |_ops|
       raise ::Lazuli::RendererError.new(status: 400, body: "Bad fragment", message: "Bad fragment")
     end
 
@@ -167,12 +167,12 @@ class TurboStreamResourceTest < Minitest::Test
     assert_includes body.join, "target=\"flash\""
     assert_includes body.join, "Bad fragment"
   ensure
-    Lazuli::Renderer.define_singleton_method(:render_turbo_stream, &original)
+    Lazuli::Renderer.define_singleton_method(:render_turbo_stream_rendered, &original)
   end
 
   def test_stream_error_targets_can_be_configured
-    original = Lazuli::Renderer.method(:render_turbo_stream)
-    Lazuli::Renderer.define_singleton_method(:render_turbo_stream) do |_ops|
+    original = Lazuli::Renderer.method(:render_turbo_stream_rendered)
+    Lazuli::Renderer.define_singleton_method(:render_turbo_stream_rendered) do |_ops|
       raise ::Lazuli::RendererError.new(status: 500, body: "boom", message: "boom")
     end
 
@@ -184,12 +184,12 @@ class TurboStreamResourceTest < Minitest::Test
     assert_includes body.join, "targets=\"body\""
     assert_includes body.join, "Internal Server Error"
   ensure
-    Lazuli::Renderer.define_singleton_method(:render_turbo_stream, &original)
+    Lazuli::Renderer.define_singleton_method(:render_turbo_stream_rendered, &original)
   end
 
   def test_stream_error_shows_detail_in_debug
-    original = Lazuli::Renderer.method(:render_turbo_stream)
-    Lazuli::Renderer.define_singleton_method(:render_turbo_stream) do |_ops|
+    original = Lazuli::Renderer.method(:render_turbo_stream_rendered)
+    Lazuli::Renderer.define_singleton_method(:render_turbo_stream_rendered) do |_ops|
       raise ::Lazuli::RendererError.new(status: 500, body: "boom", message: "boom")
     end
 
@@ -204,7 +204,7 @@ class TurboStreamResourceTest < Minitest::Test
     assert_includes body.join, "boom"
   ensure
     ENV["LAZULI_DEBUG"] = old
-    Lazuli::Renderer.define_singleton_method(:render_turbo_stream, &original)
+    Lazuli::Renderer.define_singleton_method(:render_turbo_stream_rendered, &original)
   end
 
   def test_redirect_defaults_to_303_without_request

@@ -30,10 +30,10 @@ class TurboStreamDispatchTest < Minitest::Test
 
   def test_accept_turbo_prefers_stream_action
     captured = nil
-    original = Lazuli::Renderer.method(:render_turbo_stream)
-    Lazuli::Renderer.define_singleton_method(:render_turbo_stream) do |ops|
+    original = Lazuli::Renderer.method(:render_turbo_stream_rendered)
+    Lazuli::Renderer.define_singleton_method(:render_turbo_stream_rendered) do |ops|
       captured = ops
-      "<turbo-stream></turbo-stream>"
+      Lazuli::Renderer::Rendered.new(body: "<turbo-stream></turbo-stream>", headers: {})
     end
 
     status, headers, _body = @app.call(
@@ -44,7 +44,7 @@ class TurboStreamDispatchTest < Minitest::Test
     assert_equal "text/vnd.turbo-stream.html; charset=utf-8", headers["content-type"]
     assert_equal :update, captured&.first&.dig(:action)
   ensure
-    Lazuli::Renderer.define_singleton_method(:render_turbo_stream, &original)
+    Lazuli::Renderer.define_singleton_method(:render_turbo_stream_rendered, &original)
   end
 
   def test_non_turbo_uses_html_action

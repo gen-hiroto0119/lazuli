@@ -23,8 +23,8 @@ class AppRendererErrorTest < Minitest::Test
   end
 
   def test_renderer_error_renders_html_error_page_and_preserves_status
-    original = Lazuli::Renderer.method(:render)
-    Lazuli::Renderer.define_singleton_method(:render) do |_page, _props|
+    original = Lazuli::Renderer.method(:rendered)
+    Lazuli::Renderer.define_singleton_method(:rendered) do |_page, _props|
       raise Lazuli::RendererError.new(status: 400, body: "Bad fragment", message: "Bad fragment")
     end
 
@@ -33,12 +33,12 @@ class AppRendererErrorTest < Minitest::Test
     assert_equal "text/html; charset=utf-8", headers["content-type"]
     assert_includes body.join, "Bad fragment"
   ensure
-    Lazuli::Renderer.define_singleton_method(:render, &original)
+    Lazuli::Renderer.define_singleton_method(:rendered, &original)
   end
 
   def test_renderer_500_error_is_sanitized_without_debug
-    original = Lazuli::Renderer.method(:render)
-    Lazuli::Renderer.define_singleton_method(:render) do |_page, _props|
+    original = Lazuli::Renderer.method(:rendered)
+    Lazuli::Renderer.define_singleton_method(:rendered) do |_page, _props|
       raise Lazuli::RendererError.new(status: 500, body: "boom", message: "boom")
     end
 
@@ -51,12 +51,12 @@ class AppRendererErrorTest < Minitest::Test
     refute_includes body.join, "boom"
   ensure
     ENV["LAZULI_DEBUG"] = old
-    Lazuli::Renderer.define_singleton_method(:render, &original)
+    Lazuli::Renderer.define_singleton_method(:rendered, &original)
   end
 
   def test_renderer_error_returns_turbo_stream_when_accepts_turbo_stream
-    original = Lazuli::Renderer.method(:render)
-    Lazuli::Renderer.define_singleton_method(:render) do |_page, _props|
+    original = Lazuli::Renderer.method(:rendered)
+    Lazuli::Renderer.define_singleton_method(:rendered) do |_page, _props|
       raise Lazuli::RendererError.new(status: 400, body: "Bad fragment", message: "Bad fragment")
     end
 
@@ -69,7 +69,7 @@ class AppRendererErrorTest < Minitest::Test
     assert_includes body.join, "<turbo-stream"
     assert_includes body.join, "Bad fragment"
   ensure
-    Lazuli::Renderer.define_singleton_method(:render, &original)
+    Lazuli::Renderer.define_singleton_method(:rendered, &original)
   end
 
   def test_debug_renders_detailed_error_page_for_standard_error
@@ -87,8 +87,8 @@ class AppRendererErrorTest < Minitest::Test
   end
 
   def test_debug_renders_detailed_error_page_for_renderer_error
-    original = Lazuli::Renderer.method(:render)
-    Lazuli::Renderer.define_singleton_method(:render) do |_page, _props|
+    original = Lazuli::Renderer.method(:rendered)
+    Lazuli::Renderer.define_singleton_method(:rendered) do |_page, _props|
       raise Lazuli::RendererError.new(status: 400, body: "Bad fragment", message: "Bad fragment")
     end
 
@@ -102,6 +102,6 @@ class AppRendererErrorTest < Minitest::Test
     assert_includes body.join, "Backtrace"
   ensure
     ENV["LAZULI_DEBUG"] = old
-    Lazuli::Renderer.define_singleton_method(:render, &original)
+    Lazuli::Renderer.define_singleton_method(:rendered, &original)
   end
 end

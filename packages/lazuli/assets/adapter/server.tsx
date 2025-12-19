@@ -144,14 +144,13 @@ app.post("/render_turbo_stream", async (c) => {
     const { streams } = await c.req.json();
     const appRoot = resolve(args["app-root"]);
 
-    const parts: string[] = [];
-    for (const s of (streams || []) as Array<any>) {
+    const tasks = ((streams || []) as Array<any>).map(async (s) => {
       const action = String(s.action || "");
       const target = s.target != null ? String(s.target) : "";
       const targets = s.targets != null ? String(s.targets) : "";
 
-      if (!action) continue;
-      if (!target && !targets) continue;
+      if (!action) return null;
+      if (!target && !targets) return null;
 
       const actionAttr = escapeAttr(action);
       const targetAttr = target ? escapeAttr(target) : "";
@@ -159,8 +158,7 @@ app.post("/render_turbo_stream", async (c) => {
       const selectorAttr = targetsAttr ? `targets="${targetsAttr}"` : `target="${targetAttr}"`;
 
       if (action === "remove") {
-        parts.push(`<turbo-stream action="remove" ${selectorAttr}></turbo-stream>`);
-        continue;
+        return `<turbo-stream action="remove" ${selectorAttr}></turbo-stream>`;
       }
 
       const fragment = String(s.fragment || "");
@@ -170,8 +168,10 @@ app.post("/render_turbo_stream", async (c) => {
 
       const props = (s.props || {}) as Record<string, unknown>;
       const inner = await renderFragment(appRoot, fragment, props);
-      parts.push(`<turbo-stream action="${actionAttr}" ${selectorAttr}><template>${inner}</template></turbo-stream>`);
-    }
+      return `<turbo-stream action="${actionAttr}" ${selectorAttr}><template>${inner}</template></turbo-stream>`;
+    });
+
+    const parts = (await Promise.all(tasks)).filter((s): s is string => !!s);
 
     const dt = performance.now() - t0;
     return c.body(parts.join(""), 200, {
