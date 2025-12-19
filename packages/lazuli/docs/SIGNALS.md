@@ -273,7 +273,53 @@ Lazuli の強み（HTML First / Server as truth）を活かすなら、まずは
 
 ---
 
-## 12. 未決事項
+## 12. 既存ストア（nanostores等）との連携
+
+目的は「他ライブラリを推奨する」ことではなく、UI 状態（theme/toast 等）で既に使っているストアを **最小の手間で繋ぐ**ことです。
+
+### 12.1 連携の基本形（Subscribable）
+
+多くの状態管理は、突き詰めると以下の 2 つを満たします。
+
+- `get(): T`（現在値）
+- `subscribe(fn): () => void`（変更通知）
+
+この形に落とせれば、どんなストアでも `render()` と繋げられます。
+
+### 12.2 例：nanostores
+
+```ts
+import { atom } from "nanostores";
+import { render } from "tiny-signals/dom";
+import { jsx } from "hono/jsx/dom";
+
+const theme = atom<"light" | "dark">("light");
+
+export function mountThemeIsland(root: HTMLElement) {
+  const rerender = () => {
+    render(root, () => <span>{theme.get()}</span>, { strategy: "morph" });
+  };
+
+  rerender();
+  const unsub = theme.subscribe(rerender);
+  return () => unsub();
+}
+```
+
+### 12.3 “もっと楽に”するためのアダプタ案（提案）
+
+ユーザーに毎回 `subscribe(rerender)` を書かせるのがダルいので、ライブラリ側で 2 つの薄いヘルパを用意すると楽になります。
+
+- `fromSubscribable(get, subscribe) -> () => T`
+  - 外部ストアを「signal/readable」っぽい読み口に変換
+- `renderWith(store, root, view, opts?)`
+  - 購読と再描画を内包して、呼び出しを 1 行にする
+
+この 2 つがあると nanostores/自作 store/イベント emitter 系まで同じ書き味で繋げられます。
+
+---
+
+## 13. 未決事項
 
 - 命名：`createSignal/createEffect`（Solid 風） vs `signal/effect`（Preact 風）
 - `render()` は `{ dispose }` を返すべきか？
