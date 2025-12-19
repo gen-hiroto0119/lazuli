@@ -207,21 +207,21 @@ class TurboStreamResourceTest < Minitest::Test
     Lazuli::Renderer.define_singleton_method(:render_turbo_stream, &original)
   end
 
-  def test_redirect_to_defaults_to_303_without_request
-    status, headers, _body = Lazuli::Resource.new.redirect_to("/x")
+  def test_redirect_defaults_to_303_without_request
+    status, headers, _body = Lazuli::Resource.new.redirect("/x")
     assert_equal 303, status
     assert_equal "/x", headers["location"]
   end
 
-  def test_redirect_to_defaults_to_302_for_get
+  def test_redirect_defaults_to_302_for_get
     req = Struct.new(:request_method).new("GET")
-    status, _headers, _body = Lazuli::Resource.new({}, request: req).redirect_to("/x")
+    status, _headers, _body = Lazuli::Resource.new({}, request: req).redirect("/x")
     assert_equal 302, status
   end
 
-  def test_redirect_to_defaults_to_303_for_post
-    req = Struct.new(:request_method).new("POST")
-    status, _headers, _body = Lazuli::Resource.new({}, request: req).redirect_to("/x")
+  def test_redirect_to_is_alias
+    status, headers, _body = Lazuli::Resource.new.redirect_to("/x")
     assert_equal 303, status
+    assert_equal "/x", headers["location"]
   end
 end

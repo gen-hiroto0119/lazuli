@@ -175,10 +175,10 @@ module Lazuli
 
       allow = []
       allow << "GET" if resource.respond_to?(id_present ? "show" : "index")
-      allow << "POST" if resource.respond_to?("create")
-      allow << "PUT" if resource.respond_to?("update")
-      allow << "PATCH" if resource.respond_to?("update")
-      allow << "DELETE" if resource.respond_to?("destroy")
+      allow << "POST" if resource.respond_to?("create") || resource.respond_to?("create_stream")
+      allow << "PUT" if resource.respond_to?("update") || resource.respond_to?("update_stream")
+      allow << "PATCH" if resource.respond_to?("update") || resource.respond_to?("update_stream")
+      allow << "DELETE" if resource.respond_to?("destroy") || resource.respond_to?("destroy_stream")
       allow
     end
 

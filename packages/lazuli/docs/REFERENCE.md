@@ -174,7 +174,7 @@ end
 
 - `page` は `app/pages/<page>.tsx`（拡張子なし）に対応。
 
-### 5.2 `redirect(location, status: nil)` / `redirect_to(location, status: nil)`
+### 5.2 `redirect(location, status: nil)`（推奨） / `redirect_to(location, status: nil)`
 
 Rackレスポンス `[status, headers, body]` を返すヘルパ。
 
