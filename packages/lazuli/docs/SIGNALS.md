@@ -1,48 +1,48 @@
-# Signals (proposed)
+# Signals（提案）
 
-This document describes a proposed small, dependency-light “Signals + JSX” client-side pattern that fits Lazuli’s goals:
+このドキュメントは、Lazuli の思想に合う **小さく・依存が軽い「Signals + JSX」クライアントパターン**の提案をまとめたものです。
 
-- **HTML First / Server is source of truth** (DB is truth, server HTML is canonical)
-- **Islands are small** (client interactivity is scoped, not SPA)
-- **Minimal DX overhead** (no user-authored hooks required)
-- **Web-standards friendly** (Hono `hono/jsx/dom` is the JSX runtime)
+- **HTML First / Server is source of truth**（DB が真、サーバが返す HTML が正）
+- **Islands は小さく**（クライアントの責務は局所的、SPA を目指さない）
+- **DX のオーバーヘッドを最小に**（ユーザーが hooks を書かなくてよい）
+- **Web 標準寄り**（JSX ランタイムは Hono の `hono/jsx/dom`）
 
-The intent is to enable **instant UI feedback** (optimistic UI) while keeping correctness by **syncing back to server-rendered HTML** and rolling back on failure.
-
----
-
-## 1. Motivation: “Signals-like” in Lazuli
-
-The mental model:
-
-1. User interacts → UI should update immediately (optimistic).
-2. Client sends a request (POST/fetch).
-3. If the request succeeds → UI converges to the **server’s canonical HTML** (Turbo Stream/HTML fragment).
-4. If it fails → UI rolls back to the previous state, and an error is shown.
-
-Signals-style state helps because:
-
-- State reads implicitly track dependencies (no manual subscriptions).
-- Updates are immediate and predictable.
-- A tiny API surface is enough for small islands.
+目的は、**瞬時の UI フィードバック（Optimistic UI）** を実現しつつ、失敗時はロールバックし、成功時は **サーバレンダリングの HTML に同期して正に収束**させることです。
 
 ---
 
-## 2. Non-goals
+## 1. 動機：Lazuli における「Signals 的」
 
-- Building a full SPA framework.
-- Replacing Turbo Drive/Streams.
-- Global app-wide state shared across requests.
+メンタルモデルは次の通りです。
 
-This is specifically for **small islands**.
+1. ユーザー操作 → UI は即時に変わる（optimistic）。
+2. クライアントがリクエストを投げる（POST / fetch）。
+3. 成功したら → UI は **サーバの正の HTML**（Turbo Stream / HTML 断片）へ収束。
+4. 失敗したら → UI は直前状態へロールバックし、エラーを表示。
+
+Signals 的な状態管理が効く理由：
+
+- 値を **読むだけで依存追跡**でき、購読の手書きが不要。
+- 更新が即時かつ予測可能。
+- 小さな Islands には小さな API だけで十分。
 
 ---
 
-## 3. Proposed API surface
+## 2. 非目標（Non-goals）
+
+- フル SPA フレームワークを作ること。
+- Turbo Drive / Streams を置き換えること。
+- リクエストを跨いで共有されるグローバル状態を前提にすること。
+
+これは **小さな Islands 専用**です。
+
+---
+
+## 3. 提案する API
 
 ### 3.1 Core
 
-Solid-like syntax (familiar and hook-free):
+Solid 風（馴染みがあり、hook 不要な）構文：
 
 ```ts
 const [count, setCount] = createSignal(0);
@@ -51,32 +51,32 @@ setCount(1);    // write
 setCount(c => c + 1); // functional update
 ```
 
-Minimum primitives:
+最小プリミティブ：
 
 - `createSignal<T>(initial: T): [() => T, (next: T | ((prev: T) => T)) => void]`
-- `createEffect(fn: () => void): () => void` (returns `dispose`)
+- `createEffect(fn: () => void): () => void`（`dispose` を返す）
 - `createMemo<T>(fn: () => T): () => T`
-- `batch(fn: () => void): void` (coalesce multiple updates)
-- `untrack<T>(fn: () => T): T` (optional, avoid dependency tracking)
+- `batch(fn: () => void): void`（複数更新を 1 回に畳む）
+- `untrack<T>(fn: () => T): T`（任意：依存追跡を避けたい場合）
 
-### 3.2 DOM / JSX integration
+### 3.2 DOM / JSX 統合
 
-To keep user code hook-free, we provide a single entrypoint that re-runs a view function when its dependencies change.
+ユーザーコードを hook-less に保つため、依存が変わったら view を再評価する単一の入口を用意します。
 
 ```ts
 render(root, View, { strategy: "replace" | "morph" });
 ```
 
-- `strategy: "replace"` → simplest: `root.replaceChildren(view())`
-- `strategy: "morph"` → optional: morphdom-style diffing to preserve existing nodes/listeners
+- `strategy: "replace"` → 最小：`root.replaceChildren(view())`
+- `strategy: "morph"` → 任意：morphdom 的 diff で既存ノード/リスナー維持を狙う
 
-The view function returns **Hono JSX DOM nodes** (`hono/jsx/dom`).
+view 関数は **Hono JSX DOM ノード**（`hono/jsx/dom`）を返す想定です。
 
 ---
 
-## 4. Usage examples (user-facing)
+## 4. 使い方（ユーザー向け）
 
-### 4.1 Minimal counter
+### 4.1 最小カウンター
 
 ```ts
 import { createSignal } from "tiny-signals";
@@ -95,22 +95,22 @@ const App = () => (
 render(document.querySelector("#app")!, App);
 ```
 
-### 4.2 Choosing rendering strategy
+### 4.2 レンダリング戦略の選択
 
-Same JSX, switch strategy:
+JSX は同じで、戦略だけを切り替えられます。
 
 ```ts
-render(root, App, { strategy: "replace" }); // smallest
-render(root, App, { strategy: "morph" });   // better for larger DOM
+render(root, App, { strategy: "replace" }); // 最小
+render(root, App, { strategy: "morph" });   // DOM が大きい場合に有利
 ```
 
-### 4.3 Optimistic UI (rollback on failure)
+### 4.3 Optimistic UI（失敗で rollback）
 
-We want the simplest user mental model:
+ユーザーにとって一番わかりやすいモデル：
 
-- `apply()` mutates local UI state immediately
-- `commit()` performs the request
-- `rollback()` reverts local state if `commit()` fails
+- `apply()`：ローカル UI 状態を即時に変更
+- `commit()`：リクエスト実行
+- `rollback()`：`commit()` が失敗したら元に戻す
 
 ```ts
 import { createSignal } from "tiny-signals";
@@ -146,27 +146,25 @@ render(document.querySelector("#app")!, App, { strategy: "morph" });
 
 ---
 
-## 5. “Server is truth”: syncing back to canonical HTML
+## 5. 「Server is truth」：正の HTML へ収束させる
 
-Optimistic UI is only half the story.
+Optimistic UI は半分で、Lazuli の方針（DB/Server が真）を守るには **成功時にサーバ HTML へ収束**させる必要があります。
 
-To preserve Lazuli’s **DB/Server as truth**, on success we should converge to server HTML, not just trust the client mutation.
+### 5.1 Turbo Streams を使う（推奨）
 
-### 5.1 With Turbo Streams (recommended)
+- クライアントは `Accept: text/vnd.turbo-stream.html` を付けて `fetch` する。
+- サーバは Turbo Stream を返す。
+- Turbo が DOM 更新を適用し、UI が正になる。
 
-- Client performs `fetch` with `Accept: text/vnd.turbo-stream.html`.
-- Server responds with Turbo Stream operations.
-- Turbo applies DOM updates, making the UI canonical.
+クライアント側の責務：
 
-Client responsibilities:
+- （任意で）optimistic に更新。
+- 成功時は **何もしない**（Turbo が DOM を正にする）。
+- 失敗時は rollback。
 
-- Optimistically update (optional).
-- On success, do **nothing** (Turbo’s response updates DOM).
-- On failure, rollback.
+### 5.2 Turbo Streams なし：HTML 断片 + morph
 
-### 5.2 Without Turbo Streams: HTML fragment + morph
-
-If the server returns an HTML fragment for a slot/partial, we can morph it in:
+サーバが slot/partial の HTML 断片を返す場合、それを morph で当てられます。
 
 ```ts
 await optimistic({
@@ -180,60 +178,60 @@ await optimistic({
     if (!res.ok) throw new Error(await res.text());
 
     const html = await res.text();
-    morph(slotEl, html); // implementation detail: HTML -> Node -> morph
+    morph(slotEl, html); // 実装詳細：HTML -> Node -> morph
   }
 });
 ```
 
 ---
 
-## 6. Island scoping rules (to avoid common bugs)
+## 6. Island のスコープ規約（よくあるバグを避ける）
 
-1. **Never create signals in module top-level for server-rendered apps.**
-   - Create signals inside the island `mount()` so they are per-instance.
-2. Prefer **slot-level rendering**.
-   - Re-render/morph only the minimal subtree.
-3. Provide `dispose()`.
-   - Effects/listeners must be cleaned up when islands are replaced.
-4. Decide how to handle concurrency.
-   - For small apps: disable re-entry while `commit()` pending.
-   - For complex apps: add a `tx` id (Action queue / reducer approach).
+1. **サーバレンダリングアプリでは module top-level で signal を作らない。**
+   - island の `mount()` 内で作り、インスタンスごとに分離する。
+2. **slot 単位レンダリングを優先**する。
+   - 再描画/morph は最小 subtree に限定。
+3. `dispose()` を提供する。
+   - island が置換されるとき、effect/listener を確実に掃除する。
+4. 競合（並行）をどう扱うか決める。
+   - 小規模：`commit()` 中は二重実行を抑止。
+   - 複雑：`tx` を導入（Action queue / reducer アプローチ）。
 
 ---
 
-## 7. Implementation sketch (internal)
+## 7. 実装スケッチ（内部）
 
-This is a sketch to clarify expected behavior.
+期待動作を明確にするためのスケッチです。
 
-- `createSignal` holds:
+- `createSignal` が保持：
   - `value`
   - `subscribers: Set<Effect>`
-- Dependency tracking:
-  - A global `currentEffect` pointer while executing `createEffect`.
-  - `signal.read()` registers `currentEffect` as subscriber.
-  - `signal.write()` schedules subscribers.
-- Scheduling:
-  - `batch(fn)` queues notifications and flushes once.
+- 依存追跡：
+  - `createEffect` 実行中はグローバルに `currentEffect` を指す。
+  - `signal.read()` が `currentEffect` を subscriber に登録。
+  - `signal.write()` が subscriber をスケジュール。
+- スケジューリング：
+  - `batch(fn)` が通知をキューし、最後に 1 回 flush。
 
-DOM integration:
+DOM 統合：
 
-- `render(root, view)` registers an effect that re-evaluates `view()`.
-- Strategy:
+- `render(root, view)` が effect を登録し、`view()` を再評価。
+- 戦略：
   - `replace`: `root.replaceChildren(node)`
   - `morph`: `morphdom(root, node)`
 
 ---
 
-## 8. When to choose what
+## 8. 何をいつ選ぶか
 
-- **Smallest islands** → `render(..., { strategy: "replace" })`
-- **Bigger DOM / preserve focus** → `render(..., { strategy: "morph" })`
-- **Server-canonical updates** → Turbo Streams first, morph as fallback
+- **最小 Islands** → `render(..., { strategy: "replace" })`
+- **DOM が大きい / focus を維持したい** → `render(..., { strategy: "morph" })`
+- **正の収束** → Turbo Streams を第一選択、morph はフォールバック
 
 ---
 
-## 9. Open questions
+## 9. 未決事項
 
-- Naming: `createSignal/createEffect` (Solid-like) vs `signal/effect` (Preact-like).
-- Should `render()` return `{ dispose }`?
-- How much to standardize around Turbo Streams vs generic HTML fragments?
+- 命名：`createSignal/createEffect`（Solid 風） vs `signal/effect`（Preact 風）
+- `render()` は `{ dispose }` を返すべきか？
+- Turbo Streams をどこまで標準化し、HTML 断片をどこまで許容するか？
